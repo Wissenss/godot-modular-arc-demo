@@ -1,0 +1,45 @@
+[gd_scene load_steps=7 format=3 uid="uid://0d6e08isecd2"]
+
+[ext_resource type="Script" uid="uid://4asix2ll1sjf" path="res://scripts/ui_manager.gd" id="1_o5qli"]
+[ext_resource type="PackedScene" uid="uid://cj37en2cadfs2" path="res://scenes/components/player_info_comp.tscn" id="2_0wfyh"]
+[ext_resource type="PackedScene" uid="uid://goye22eydgcc" path="res://scenes/entities/characters/character_one.tscn" id="3_sugp2"]
+[ext_resource type="PackedScene" uid="uid://r01mjk78ej5v" path="res://scenes/entities/enemies/enemy_one.tscn" id="4_jyhfs"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_sgp6g"]
+size = Vector2(3200, 5)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_o5qli"]
+size = Vector2(5, 1301)
+
+[node name="world" type="Node2D"]
+
+[node name="environment" type="Node" parent="."]
+
+[node name="border" type="StaticBody2D" parent="environment"]
+
+[node name="top" type="CollisionShape2D" parent="environment/border"]
+position = Vector2(0, -2.5)
+shape = SubResource("RectangleShape2D_sgp6g")
+
+[node name="bottom" type="CollisionShape2D" parent="environment/border"]
+position = Vector2(0, 650.5)
+shape = SubResource("RectangleShape2D_sgp6g")
+
+[node name="left" type="CollisionShape2D" parent="environment/border"]
+position = Vector2(-2.5, 0)
+shape = SubResource("RectangleShape2D_o5qli")
+
+[node name="right" type="CollisionShape2D" parent="environment/border"]
+position = Vector2(1154.5, 0)
+shape = SubResource("RectangleShape2D_o5qli")
+
+[node name="ui_manager" type="Node" parent="."]
+script = ExtResource("1_o5qli")
+
+[node name="player1_info" parent="ui_manager" instance=ExtResource("2_0wfyh")]
+
+[node name="character_one" parent="." instance=ExtResource("3_sugp2")]
+position = Vector2(321, 346)
+
+[node name="enemy_one" parent="." instance=ExtResource("4_jyhfs")]
+position = Vector2(547, 448)

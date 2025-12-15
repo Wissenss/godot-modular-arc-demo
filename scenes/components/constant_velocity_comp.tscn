@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cy0ur7ijrky36"]
+
+[ext_resource type="Script" uid="uid://cqu754vd1xof8" path="res://scripts/components/constant_velocity_comp.gd" id="1_tc7mk"]
+
+[node name="constant_velocity_comp" type="Node"]
+script = ExtResource("1_tc7mk")

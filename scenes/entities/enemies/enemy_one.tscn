@@ -1,0 +1,22 @@
+[gd_scene load_steps=4 format=3 uid="uid://r01mjk78ej5v"]
+
+[ext_resource type="Script" uid="uid://d0838df7t0r1m" path="res://scripts/entities/enemy_one.gd" id="1_kksog"]
+[ext_resource type="PackedScene" uid="uid://dj21fnn1c45e5" path="res://scenes/components/hurtbox_comp.tscn" id="2_kksog"]
+[ext_resource type="PackedScene" uid="uid://d066mpfwkr1h5" path="res://scenes/components/knockback_comp.tscn" id="3_qjw14"]
+
+[node name="enemy_one" type="CharacterBody2D"]
+script = ExtResource("1_kksog")
+
+[node name="collision" type="CollisionPolygon2D" parent="."]
+polygon = PackedVector2Array(-20, -20, 20, -20, 20, 20, -20, 20)
+
+[node name="polygon" type="Polygon2D" parent="."]
+color = Color(0, 0, 1, 1)
+polygon = PackedVector2Array(-20, -20, 20, -20, 20, 20, -20, 20)
+
+[node name="hurtbox_comp" parent="." instance=ExtResource("2_kksog")]
+
+[node name="polygon" type="CollisionPolygon2D" parent="hurtbox_comp"]
+polygon = PackedVector2Array(-21, -21, 21, -21, 21, 21, -21, 21)
+
+[node name="knockback_comp" parent="." instance=ExtResource("3_qjw14")]

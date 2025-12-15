@@ -1,0 +1,28 @@
+[gd_scene load_steps=6 format=3 uid="uid://goye22eydgcc"]
+
+[ext_resource type="Script" uid="uid://bawhjglpmmhtn" path="res://scripts/entities/character_one.gd" id="1_niea1"]
+[ext_resource type="PackedScene" uid="uid://cod6yyp0ty0to" path="res://scenes/components/health_comp.tscn" id="2_2nqfl"]
+[ext_resource type="PackedScene" uid="uid://csmy7kxa8ekxh" path="res://scenes/components/hitbox_comp.tscn" id="3_2nqfl"]
+[ext_resource type="PackedScene" uid="uid://inlq8x8t35c3" path="res://scenes/components/controller_comp.tscn" id="4_qauo6"]
+[ext_resource type="PackedScene" uid="uid://cy0ur7ijrky36" path="res://scenes/components/constant_velocity_comp.tscn" id="5_hvedb"]
+
+[node name="character_one" type="CharacterBody2D"]
+script = ExtResource("1_niea1")
+
+[node name="collision" type="CollisionPolygon2D" parent="."]
+polygon = PackedVector2Array(-20, -20, 20, -20, 20, 20, -20, 20)
+
+[node name="polygon" type="Polygon2D" parent="."]
+color = Color(1, 0, 0, 1)
+polygon = PackedVector2Array(-20, -20, 20, -20, 20, 20, -20, 20)
+
+[node name="hitbox_comp" parent="." instance=ExtResource("3_2nqfl")]
+
+[node name="collision" type="CollisionPolygon2D" parent="hitbox_comp"]
+polygon = PackedVector2Array(-20, -20, 20, -20, 20, 20, -20, 20)
+
+[node name="health_comp" parent="." instance=ExtResource("2_2nqfl")]
+
+[node name="controller_comp" parent="." instance=ExtResource("4_qauo6")]
+
+[node name="constant_velocity_comp" parent="." instance=ExtResource("5_hvedb")]

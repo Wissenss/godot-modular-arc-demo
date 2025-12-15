@@ -1,0 +1,19 @@
+[gd_scene load_steps=5 format=3 uid="uid://vbj3thrhdeb4"]
+
+[ext_resource type="PackedScene" uid="uid://csmy7kxa8ekxh" path="res://scenes/components/hitbox_comp.tscn" id="1_xt7mi"]
+[ext_resource type="PackedScene" uid="uid://cod6yyp0ty0to" path="res://scenes/components/health_comp.tscn" id="2_jykby"]
+[ext_resource type="PackedScene" uid="uid://inlq8x8t35c3" path="res://scenes/components/controller_comp.tscn" id="3_qmfth"]
+[ext_resource type="PackedScene" uid="uid://cy0ur7ijrky36" path="res://scenes/components/constant_velocity_comp.tscn" id="4_yhwdh"]
+
+[node name="CharacterTwo" type="CharacterBody2D"]
+
+[node name="hitbox_comp" parent="." instance=ExtResource("1_xt7mi")]
+
+[node name="collision" type="CollisionPolygon2D" parent="hitbox_comp"]
+polygon = PackedVector2Array(-20, -20, 20, -20, 20, 20, -20, 20)
+
+[node name="health_comp" parent="." instance=ExtResource("2_jykby")]
+
+[node name="controller_comp" parent="." instance=ExtResource("3_qmfth")]
+
+[node name="constant_velocity_comp" parent="." instance=ExtResource("4_yhwdh")]
