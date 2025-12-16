@@ -4,6 +4,9 @@ var HealthComp : HealthComponent
 var HitboxComp : HitboxComponent
 var ControllerComp : ControllerComponent
 var ConstantVelocityComp : ConstantVelocityComponent
+var WeaponOne : WeaponOne
+
+var Polygon : Polygon2D
 
 func _ready() -> void:
 	self.HealthComp = $health_comp
@@ -22,6 +25,11 @@ func _ready() -> void:
 	self.ConstantVelocityComp = $constant_velocity_comp
 	self.ConstantVelocityComp.Owner = self
 	self.ConstantVelocityComp.Speed = 400
+	
+	self.WeaponOne = $weapon_one
+	self.WeaponOne.Owner = self
+	
+	self.Polygon = $polygon
 
 func _handle_on_health_changed(health : int, old_health: int) -> void:
 	pass
@@ -29,9 +37,21 @@ func _handle_on_health_changed(health : int, old_health: int) -> void:
 func _handle_on_died() -> void:
 	self.queue_free()
 
+func _do_blink_effect() -> void:
+	for i in range(4):
+		self.Polygon.color.b += 20
+		await get_tree().create_timer(0.1).timeout
+		self.Polygon.color.b -= 20
+		await get_tree().create_timer(0.1).timeout
+
 func _handle_on_hit(by: Area2D) -> void:
 	if by is HurtboxComponent:
+		if by.Owner == self: # ignore your own shots
+			return
+		
 		self.HealthComp.take_damage(by.Damage)
+		
+		self._do_blink_effect()
 
 func _input(event: InputEvent) -> void:
 	# if the character has knockback, do not apply movement
@@ -40,3 +60,6 @@ func _input(event: InputEvent) -> void:
 		return
 	
 	self.ConstantVelocityComp.Direction = self.ControllerComp._get_move_direction()
+	
+	if self.ControllerComp._is_shoot_pressed():
+		self.WeaponOne._shoot(self.ControllerComp._get_aim_direction())

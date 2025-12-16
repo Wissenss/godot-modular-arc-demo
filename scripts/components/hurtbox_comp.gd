@@ -1,6 +1,7 @@
 class_name HurtboxComponent extends Area2D
 
 var Damage := 0
+var Owner : Node2D
 
 signal on_hurt(to: Area2D, damage_dealt : int)
 

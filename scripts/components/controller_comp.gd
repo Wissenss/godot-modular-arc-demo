@@ -23,6 +23,9 @@ func _get_aim_direction() -> Vector2:
 	var mouse_pos = get_viewport().get_mouse_position()
 	var player_pos = self.Owner.position
 	
-	var direction = player_pos - mouse_pos
+	var direction = mouse_pos - player_pos
 	
 	return direction.normalized()
+
+func _is_shoot_pressed() -> bool:
+	return Input.is_action_pressed("ui_accept")
