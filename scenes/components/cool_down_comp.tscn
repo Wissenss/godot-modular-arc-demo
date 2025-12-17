@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3 uid="uid://4q713dbg64n6"]
+
+[ext_resource type="Script" uid="uid://c2t1q6apnjmhf" path="res://scripts/components/cooldown_comp.gd" id="1_usm8c"]
+
+[node name="cool_down_comp" type="Node"]
+script = ExtResource("1_usm8c")
+
+[node name="timer" type="Timer" parent="."]

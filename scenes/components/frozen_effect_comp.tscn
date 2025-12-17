@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3 uid="uid://t1p7bf7o2alo"]
+
+[ext_resource type="Script" uid="uid://b5wdh5f7st46p" path="res://scripts/components/frozen_effect_comp.gd" id="1_d76s8"]
+[ext_resource type="PackedScene" uid="uid://4q713dbg64n6" path="res://scenes/components/cool_down_comp.tscn" id="2_1ys1b"]
+
+[node name="frozen_effect_comp" type="Node"]
+script = ExtResource("1_d76s8")
+
+[node name="cool_down_comp" parent="." instance=ExtResource("2_1ys1b")]

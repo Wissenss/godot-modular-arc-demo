@@ -4,6 +4,7 @@ var HealthComp : HealthComponent
 var HitboxComp : HitboxComponent
 var ControllerComp : ControllerComponent
 var ConstantVelocityComp : ConstantVelocityComponent
+
 var WeaponOne : WeaponOne
 
 var Polygon : Polygon2D
@@ -56,6 +57,11 @@ func _handle_on_hit(by: Area2D) -> void:
 func _input(event: InputEvent) -> void:
 	# if the character has knockback, do not apply movement
 	if Utils.HasComponent(self, KnockbackEffectComponent.get_class_name()):
+		self.ConstantVelocityComp.Direction = Vector2(0, 0)
+		return
+	
+	# if the character is frozen, do not apply movement:
+	if Utils.HasComponent(self, FrozenEffectComp.get_class_name()):
 		self.ConstantVelocityComp.Direction = Vector2(0, 0)
 		return
 	
