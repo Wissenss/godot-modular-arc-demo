@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3 uid="uid://ddn2jhmcvusjh"]
+
+[ext_resource type="Script" uid="uid://d0kv82k3um2dp" path="res://scenes/tests/wissens/test_character_shaders.gd" id="1_7bs6c"]
+[ext_resource type="PackedScene" uid="uid://inlq8x8t35c3" path="res://scenes/components/controller_comp.tscn" id="2_ctrl"]
+[ext_resource type="PackedScene" uid="uid://cy0ur7ijrky36" path="res://scenes/components/constant_velocity_comp.tscn" id="3_vel"]
+
+[node name="TestCharacterShaders" type="CharacterBody2D" unique_id=1186725272]
+script = ExtResource("1_7bs6c")
+
+[node name="collision" type="CollisionPolygon2D" parent="."]
+polygon = PackedVector2Array(-20, -20, 20, -20, 20, 20, -20, 20)
+
+[node name="controller_comp" parent="." instance=ExtResource("2_ctrl")]
+
+[node name="constant_velocity_comp" parent="." instance=ExtResource("3_vel")]
