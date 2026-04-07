@@ -10,6 +10,11 @@ const MOVEMENT_ANIMATION_SPEED := 10.0
 const IDLE_FRAME_INDICES := [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 const IDLE_ANIMATION_SPEED := 7.0
 
+const BASE_SPEED := 400.0
+const DASH_SPEED := 1400.0
+const DASH_DURATION := 0.15
+const DASH_COOLDOWN := 0.8
+
 var HealthComp : HealthComponent
 var HitboxComp : HitboxComponent
 var ControllerComp : ControllerComponent
@@ -18,6 +23,12 @@ var ConstantVelocityComp : ConstantVelocityComponent
 var WeaponOne : WeaponOne
 
 var Sprite : AnimatedSprite2D
+
+var _is_dashing := false
+var _can_dash := true
+var _dash_direction := Vector2.ZERO
+var _dash_timer : Timer
+var _dash_cooldown_timer : Timer
 
 func _ready() -> void:
 	self.HealthComp = $health_comp
@@ -44,9 +55,26 @@ func _ready() -> void:
 	self._setup_sprite_frames()
 	self._play_idle_animation()
 
+	self._dash_timer = Timer.new()
+	self._dash_timer.one_shot = true
+	self._dash_timer.timeout.connect(self._handle_dash_end)
+	add_child(self._dash_timer)
+
+	self._dash_cooldown_timer = Timer.new()
+	self._dash_cooldown_timer.one_shot = true
+	self._dash_cooldown_timer.timeout.connect(self._handle_dash_cooldown_end)
+	add_child(self._dash_cooldown_timer)
+
 func _physics_process(_delta: float) -> void:
 	var move_direction := self._get_move_direction()
-	self.ConstantVelocityComp.Direction = move_direction
+
+	if self._is_dashing:
+		self.ConstantVelocityComp.Direction = self._dash_direction
+		self.ConstantVelocityComp.Speed = DASH_SPEED
+	else:
+		self.ConstantVelocityComp.Direction = move_direction
+		self.ConstantVelocityComp.Speed = BASE_SPEED
+
 	self._update_movement_animation(move_direction)
 
 func _handle_on_health_changed(health : int, old_health: int) -> void:
@@ -161,6 +189,32 @@ func _handle_on_hit(by: Area2D) -> void:
 		
 		self._do_blink_effect()
 
+func _start_dash() -> void:
+	var direction := self.ControllerComp._get_move_direction()
+	if direction == Vector2.ZERO:
+		return
+
+	self._is_dashing = true
+	self._can_dash = false
+	self._dash_direction = direction
+	self._dash_timer.start(DASH_DURATION)
+	self._do_dash_effect()
+
+func _handle_dash_end() -> void:
+	self._is_dashing = false
+	self._dash_cooldown_timer.start(DASH_COOLDOWN)
+
+func _handle_dash_cooldown_end() -> void:
+	self._can_dash = true
+
+func _do_dash_effect() -> void:
+	self.Sprite.modulate = Color(0.4, 0.8, 1.0, 0.5)
+	await get_tree().create_timer(DASH_DURATION).timeout
+	self.Sprite.modulate = Color.WHITE
+
 func _input(event: InputEvent) -> void:
 	if self.ControllerComp._is_shoot_pressed():
 		self.WeaponOne._shoot(self.ControllerComp._get_aim_direction())
+
+	if event.is_action_pressed("dash") and self._can_dash and not self._is_dashing:
+		self._start_dash()
