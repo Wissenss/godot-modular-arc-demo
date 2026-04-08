@@ -40,6 +40,41 @@ func _run() -> void:
 		push_error("Expected enemy idle animation to keep playing")
 		quit(1)
 		return
+
+	var body_collision := enemy.get_node("collision") as CollisionPolygon2D
+	var hurtbox_collision := enemy.get_node("hurtbox_comp/polygon") as CollisionPolygon2D
+	var hitbox_collision := enemy.get_node("hitbox_comp/polygon") as CollisionPolygon2D
+	if _is_round_hitbox(body_collision.polygon) == false:
+		push_error("Expected enemy body collision to match the visible sprite")
+		quit(1)
+		return
+	if _is_round_hitbox(hurtbox_collision.polygon) == false:
+		push_error("Expected enemy hurtbox to match the visible sprite")
+		quit(1)
+		return
+	if _is_round_hitbox(hitbox_collision.polygon) == false:
+		push_error("Expected enemy hitbox to match the visible sprite")
+		quit(1)
+		return
 	
 	print("enemy_one_visual_smoke: ok")
 	quit(0)
+
+func _is_round_hitbox(points: PackedVector2Array) -> bool:
+	if points.size() < 8:
+		return false
+
+	var min_x := points[0].x
+	var max_x := points[0].x
+	var min_y := points[0].y
+	var max_y := points[0].y
+	for point in points:
+		min_x = min(min_x, point.x)
+		max_x = max(max_x, point.x)
+		min_y = min(min_y, point.y)
+		max_y = max(max_y, point.y)
+
+	var width := max_x - min_x
+	var height := max_y - min_y
+	var ratio: float = width / max(height, 1.0)
+	return ratio >= 0.8 and ratio <= 1.25 and width >= 48.0 and height >= 48.0

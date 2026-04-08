@@ -29,4 +29,11 @@ func _get_aim_direction() -> Vector2:
 
 
 func _is_shoot_pressed() -> bool:
-	return Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or Input.is_action_pressed("ui_accept")
+	return Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+
+
+func _is_shoot_event(event: InputEvent) -> bool:
+	if event is InputEventMouseButton:
+		return event.button_index == MOUSE_BUTTON_LEFT and event.pressed
+
+	return false
