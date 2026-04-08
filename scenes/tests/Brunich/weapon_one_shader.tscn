@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://brn6weapntscn"]
+
+[ext_resource type="Script" uid="uid://brn2we4p0n8k3" path="res://scenes/tests/Brunich/weapon_one_shader.gd" id="1_itd0y"]
+
+[node name="weapon_one_shader" type="Node2D"]
+script = ExtResource("1_itd0y")

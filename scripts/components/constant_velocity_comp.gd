@@ -10,6 +10,9 @@ func _ready() -> void:
 	pass
 
 func _physics_process(delta: float) -> void:
+	if self.Owner == null:
+		return
+
 	var velocity = self.Direction * self.Speed * delta
 	
 	self.Owner.position += velocity

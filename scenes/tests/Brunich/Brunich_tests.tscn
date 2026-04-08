@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://brn8tstsmain1"]
+
+[ext_resource type="PackedScene" uid="uid://brn5tscnchar1" path="res://scenes/tests/Brunich/test_character_shaders.tscn" id="1_mc"]
+[ext_resource type="PackedScene" uid="uid://brna2entscn1" path="res://scenes/tests/Brunich/enemy_regulated.tscn" id="2_enemy"]
+[ext_resource type="Script" uid="uid://brne1mapgend1" path="res://scenes/tests/Brunich/map_generator.gd" id="3_mapgen"]
+[ext_resource type="Script" path="res://scenes/tests/Brunich/brunich_tests.gd" id="4_root"]
+
+[node name="world" type="Node2D"]
+script = ExtResource("4_root")
+
+[node name="void_bg" type="Polygon2D" parent="." unique_id=300000010]
+z_index = -20
+color = Color(0.03, 0.04, 0.10, 1.0)
+polygon = PackedVector2Array(-200, -200, 1480, -200, 1480, 840, -200, 840)
+
+[node name="floor_tiles" type="TileMapLayer" parent="." unique_id=300000007]
+z_index = -8
+script = ExtResource("3_mapgen")
+
+[node name="arena_bounds" type="StaticBody2D" parent="." unique_id=300000011]
+
+[node name="MC" parent="." unique_id=300000008 instance=ExtResource("1_mc")]
+position = Vector2(180, 324)
+
+[node name="EnemyRegulated" parent="." unique_id=300000009 instance=ExtResource("2_enemy")]
+position = Vector2(950, 324)

@@ -1,0 +1,38 @@
+[gd_scene format=3 uid="uid://brn7projttscn"]
+
+[ext_resource type="Script" uid="uid://brn3pr0j3ct1l" path="res://scenes/tests/Brunich/projectile_one_shader.gd" id="1_tepfs"]
+[ext_resource type="PackedScene" uid="uid://dj21fnn1c45e5" path="res://scenes/components/hurtbox_comp.tscn" id="2_u33ew"]
+[ext_resource type="PackedScene" uid="uid://cy0ur7ijrky36" path="res://scenes/components/constant_velocity_comp.tscn" id="3_qw0ph"]
+
+[sub_resource type="Curve" id="Curve_4j2an"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(0.3358396, 0.23329592), 0.0, 0.0, 0, 0, Vector2(0.99378884, 0), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[node name="projectile_one_shader" type="Node2D" unique_id=881139686]
+script = ExtResource("1_tepfs")
+
+[node name="outline_polygon" type="Polygon2D" parent="." unique_id=685683236]
+scale = Vector2(7.2, 7.2)
+color = Color(0.85, 0.77, 1.0, 0.95)
+polygon = PackedVector2Array(0.5, 0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5)
+
+[node name="Polygon2D" type="Polygon2D" parent="." unique_id=685683237]
+scale = Vector2(5, 5)
+color = Color(0.45, 0.18, 0.98, 0.95)
+polygon = PackedVector2Array(0.5, 0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5)
+
+[node name="hurtbox_comp" parent="." unique_id=498719501 instance=ExtResource("2_u33ew")]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="hurtbox_comp" unique_id=2134756923]
+polygon = PackedVector2Array(1, 0, 0.5, 0.866, -0.5, 0.866, -1, 0, -0.5, -0.866, 0.5, -0.866)
+
+[node name="constant_velocity_comp" parent="." unique_id=1087402155 instance=ExtResource("3_qw0ph")]
+
+[node name="CPUParticles2D" type="CPUParticles2D" parent="." unique_id=491244925]
+amount = 16
+direction = Vector2(0, 0)
+gravity = Vector2(0, 0)
+scale_amount_min = 6.0
+scale_amount_max = 8.0
+scale_amount_curve = SubResource("Curve_4j2an")
+color = Color(0.78, 0.67, 1.0, 0.7)
