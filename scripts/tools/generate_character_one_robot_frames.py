@@ -73,7 +73,7 @@ SPECS: tuple[SheetSpec, ...] = (
 MIN_COMPONENT_PIXELS = 160
 SIDE_PADDING = 8
 TOP_PADDING = 6
-BOTTOM_PADDING = 8
+BOTTOM_PADDING = 24
 TARGET_HEAD_HEIGHT = 72
 TARGET_HEAD_WIDTH = 92
 TARGET_BODY_HEIGHT = 176
@@ -235,7 +235,10 @@ def prepare_frame(frame: Image.Image, animation_name: str) -> PreparedFrame:
         working_frame = trim_sparse_top_rows(working_frame)
         working_frame = trim_transparent_border(working_frame)
 
-    head_center_x, head_top, head_width, head_height, body_bottom = measure_head_anchor(working_frame)
+    head_center_x, head_top, head_width, head_height, body_bottom = measure_head_anchor(
+        working_frame,
+        prefer_actual_bottom=animation_name == "idle" or animation_name.startswith("move_"),
+    )
     return PreparedFrame(working_frame, head_center_x, head_top, head_width, head_height, body_bottom)
 
 
@@ -268,7 +271,10 @@ def scale_prepared_frame(frame: PreparedFrame, animation_name: str) -> PreparedF
         scaled_image = trim_sparse_top_rows(scaled_image)
         scaled_image = trim_transparent_border(scaled_image)
 
-    head_center_x, head_top, head_width, head_height, body_bottom = measure_head_anchor(scaled_image)
+    head_center_x, head_top, head_width, head_height, body_bottom = measure_head_anchor(
+        scaled_image,
+        prefer_actual_bottom=animation_name == "idle" or animation_name.startswith("move_"),
+    )
     return PreparedFrame(scaled_image, head_center_x, head_top, head_width, head_height, body_bottom)
 
 
@@ -372,7 +378,7 @@ def trim_sparse_top_rows(image: Image.Image) -> Image.Image:
     return image.crop((0, trim_top, image.width, image.height))
 
 
-def measure_head_anchor(image: Image.Image) -> tuple[float, int, int, int, int]:
+def measure_head_anchor(image: Image.Image, prefer_actual_bottom: bool = False) -> tuple[float, int, int, int, int]:
     bbox = image.getbbox()
     if bbox is None:
         return 0.0, 0, 0, 0, 0
@@ -448,14 +454,15 @@ def measure_head_anchor(image: Image.Image) -> tuple[float, int, int, int, int]:
     body_band_threshold = max(5, round((body_band_right - body_band_left + 1) * 0.18))
 
     body_bottom = bottom - 1
-    for y in range(bottom - 1, min_y - 1, -1):
-        opaque_in_band = 0
-        for x in range(body_band_left, body_band_right + 1):
-            if pixels[x, y][3] > 0:
-                opaque_in_band += 1
-        if opaque_in_band >= body_band_threshold:
-            body_bottom = y
-            break
+    if prefer_actual_bottom is False:
+        for y in range(bottom - 1, min_y - 1, -1):
+            opaque_in_band = 0
+            for x in range(body_band_left, body_band_right + 1):
+                if pixels[x, y][3] > 0:
+                    opaque_in_band += 1
+            if opaque_in_band >= body_band_threshold:
+                body_bottom = y
+                break
 
     return (min_x + max_x) / 2.0, min_y, max_x - min_x + 1, max_y - min_y + 1, body_bottom
 

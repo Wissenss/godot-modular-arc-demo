@@ -85,14 +85,16 @@ func _run() -> void:
 		quit(1)
 		return
 
-	if sprite.sprite_frames.get_animation_speed("idle") < 14.0:
-		push_error("Expected idle animation speed to feel smoother, got %s fps" % sprite.sprite_frames.get_animation_speed("idle"))
+	var idle_fps := sprite.sprite_frames.get_animation_speed("idle")
+	if idle_fps < 7.5 or idle_fps > 10.5:
+		push_error("Expected idle animation speed to stay readable and smooth, got %s fps" % idle_fps)
 		quit(1)
 		return
 
 	for movement_animation in ["move_up", "move_down", "move_left", "move_right", "move_up_left", "move_up_right", "move_down_left", "move_down_right"]:
-		if sprite.sprite_frames.get_animation_speed(movement_animation) < 16.0:
-			push_error("Expected %s animation speed to feel smoother, got %s fps" % [movement_animation, sprite.sprite_frames.get_animation_speed(movement_animation)])
+		var movement_fps := sprite.sprite_frames.get_animation_speed(movement_animation)
+		if movement_fps < 8.0 or movement_fps > 10.75:
+			push_error("Expected %s animation speed to feel smooth without looking rushed, got %s fps" % [movement_animation, movement_fps])
 			quit(1)
 			return
 
@@ -126,6 +128,13 @@ func _run() -> void:
 		var border_pixels := _opaque_pixels_on_outer_border(special_texture.get_image(), 2)
 		if border_pixels > 4:
 			push_error("Expected %s to stay cropped away from the frame border, got %s border pixels" % [special_animation, border_pixels])
+			quit(1)
+			return
+
+	for grounded_animation in ["idle", "move_left", "move_right", "move_down", "move_down_left", "move_down_right"]:
+		var min_bottom_margin := _animation_min_bottom_margin(sprite, grounded_animation)
+		if min_bottom_margin < 42:
+			push_error("Expected %s to leave enough space under the feet, got margin %s" % [grounded_animation, min_bottom_margin])
 			quit(1)
 			return
 
@@ -305,6 +314,22 @@ func _animation_head_metric_spread(sprite: AnimatedSprite2D, animation_name: Str
 		return 0.0
 
 	return values.max() - values.min()
+
+func _animation_min_bottom_margin(sprite: AnimatedSprite2D, animation_name: String) -> int:
+	var min_margin := 10_000
+	var frame_count := sprite.sprite_frames.get_frame_count(animation_name)
+	for frame_index in range(frame_count):
+		var texture := sprite.sprite_frames.get_frame_texture(animation_name, frame_index)
+		if texture == null:
+			continue
+
+		var rect := texture.get_image().get_used_rect()
+		min_margin = min(min_margin, texture.get_height() - (rect.position.y + rect.size.y))
+
+	if min_margin == 10_000:
+		return 0
+
+	return min_margin
 
 func _head_metrics(image: Image) -> Dictionary:
 	var rect := image.get_used_rect()

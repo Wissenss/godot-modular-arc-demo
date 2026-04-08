@@ -1,7 +1,7 @@
 extends Node
 
-var player_one : CharacterOne
-var player_one_ui : PlayerInfoComp
+var player_one : Node
+var player_one_ui : Node
 
 func _ready() -> void:
 	self.player_one_ui = $player1_info

@@ -1,0 +1,21 @@
+[gd_scene load_steps=4 format=3 uid="uid://enemy_proj_001"]
+
+[ext_resource type="Script" path="res://scripts/weapons/proyectiles/projectile_enemy.gd" id="1_epro"]
+[ext_resource type="PackedScene" uid="uid://dj21fnn1c45e5" path="res://scenes/components/hurtbox_comp.tscn" id="2_epro"]
+[ext_resource type="PackedScene" uid="uid://cy0ur7ijrky36" path="res://scenes/components/constant_velocity_comp.tscn" id="3_epro"]
+
+[node name="projectile_enemy" type="Node2D"]
+script = ExtResource("1_epro")
+
+[node name="Polygon2D" type="Polygon2D" parent="."]
+scale = Vector2(10, 10)
+color = Color(0.85, 0.08, 0.15, 1)
+polygon = PackedVector2Array(1, 0, 0.5, 0.866, -0.5, 0.866, -1, 0, -0.5, -0.866, 0.5, -0.866)
+
+[node name="hurtbox_comp" parent="." instance=ExtResource("2_epro")]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="hurtbox_comp"]
+scale = Vector2(2, 2)
+polygon = PackedVector2Array(1, 0, 0.5, 0.866, -0.5, 0.866, -1, 0, -0.5, -0.866, 0.5, -0.866)
+
+[node name="constant_velocity_comp" parent="." instance=ExtResource("3_epro")]
