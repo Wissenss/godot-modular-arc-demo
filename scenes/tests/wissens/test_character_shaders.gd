@@ -4,6 +4,7 @@ var ControllerComp : ControllerComponent
 var ConstantVelocityComp : ConstantVelocityComponent
 var BodyParticles : CPUParticles2D
 var TrailParticles : CPUParticles2D
+var Weapon : WeaponOneShader
 
 func _ready() -> void:
 	self.ControllerComp = $controller_comp
@@ -12,6 +13,9 @@ func _ready() -> void:
 	self.ConstantVelocityComp = $constant_velocity_comp
 	self.ConstantVelocityComp.Owner = self
 	self.ConstantVelocityComp.Speed = 400
+	
+	self.Weapon = $weapon_one_shader
+	self.Weapon.Owner = self
 	
 	self.BodyParticles = $body_particles
 	self.TrailParticles = $trail_particles
@@ -26,6 +30,10 @@ func _input(event: InputEvent) -> void:
 		return
 	
 	self.ConstantVelocityComp.Direction = self.ControllerComp._get_move_direction()
+	
+	if self.ControllerComp._is_shoot_pressed():
+		self.Weapon._shoot(self.ControllerComp._get_aim_direction())
+
 
 func _process(delta):
 	var is_moving : bool = self.ConstantVelocityComp.Direction != Vector2.ZERO
