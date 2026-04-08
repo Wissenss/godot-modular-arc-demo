@@ -30,6 +30,32 @@ func _run() -> void:
 		push_error("Expected sprite scale to be larger than the current placeholder size")
 		quit(1)
 		return
+
+	if character.ConstantVelocityComp.Speed != 260:
+		push_error("Expected movement speed to be retuned to 260 for the new skin")
+		quit(1)
+		return
+
+	var expected_animations := [
+		"idle",
+		"move_up",
+		"move_down",
+		"move_left",
+		"move_right",
+		"move_up_left",
+		"move_up_right",
+		"move_down_left",
+		"move_down_right",
+	]
+	for animation_name in expected_animations:
+		if sprite.sprite_frames.has_animation(animation_name) == false:
+			push_error("Expected animation '%s' to exist for the new 8-direction skin" % animation_name)
+			quit(1)
+			return
+		if sprite.sprite_frames.get_frame_count(animation_name) < 1:
+			push_error("Expected animation '%s' to have at least one frame" % animation_name)
+			quit(1)
+			return
 	
 	if sprite.animation != "idle":
 		push_error("Expected idle animation to be active by default")
