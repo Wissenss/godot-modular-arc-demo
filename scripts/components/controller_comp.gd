@@ -7,7 +7,7 @@ var Owner : Node2D
 
 func _get_move_direction() -> Vector2:
 	var direction := Vector2(0, 0)
-	
+
 	if Input.is_action_pressed("ui_up") or Input.is_physical_key_pressed(KEY_W):
 		direction.y -= 1
 	if Input.is_action_pressed("ui_down") or Input.is_physical_key_pressed(KEY_S):
@@ -16,16 +16,17 @@ func _get_move_direction() -> Vector2:
 		direction.x -= 1
 	if Input.is_action_pressed("ui_right") or Input.is_physical_key_pressed(KEY_D):
 		direction.x += 1
-	
+
 	return direction.normalized()
+
 
 func _get_aim_direction() -> Vector2:
-	var mouse_pos = get_viewport().get_mouse_position()
-	var player_pos = self.Owner.position
-	
-	var direction = mouse_pos - player_pos
-	
+	var mouse_pos := get_viewport().get_mouse_position()
+	var player_pos := self.Owner.position
+	var direction := mouse_pos - player_pos
+
 	return direction.normalized()
 
+
 func _is_shoot_pressed() -> bool:
-	return Input.is_action_pressed("ui_accept")
+	return Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or Input.is_action_pressed("ui_accept")
