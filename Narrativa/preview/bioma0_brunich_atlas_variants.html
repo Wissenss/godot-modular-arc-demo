@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bioma 0 / Brunich Atlas Variants</title>
+  <style>
+    :root {
+      --bg0: #08111f;
+      --bg1: #0c1630;
+      --bg2: #13203a;
+      --panel: rgba(10, 16, 32, 0.95);
+      --line: rgba(150, 205, 255, 0.18);
+      --text: #eef4ff;
+      --muted: #9eb4d7;
+      --good: #86ebff;
+      --soft: rgba(255, 255, 255, 0.04);
+      font-family: "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(92, 176, 255, 0.12), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(116, 82, 255, 0.10), transparent 24%),
+        linear-gradient(180deg, var(--bg0), var(--bg1) 46%, var(--bg2));
+    }
+
+    .wrap {
+      width: min(1560px, calc(100vw - 24px));
+      margin: 0 auto;
+      padding: 28px 0 42px;
+    }
+
+    .hero,
+    .section-card,
+    .draft-card {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(14, 24, 46, 0.96), var(--panel));
+      box-shadow: 0 24px 72px rgba(0, 0, 0, 0.42);
+      backdrop-filter: blur(8px);
+    }
+
+    .hero,
+    .section-card {
+      padding: 24px;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--good);
+      background: rgba(130, 231, 255, 0.12);
+      border: 1px solid rgba(130, 231, 255, 0.18);
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      letter-spacing: -0.03em;
+    }
+
+    h1 {
+      margin-top: 14px;
+      font-size: clamp(30px, 5vw, 48px);
+      line-height: 1.04;
+    }
+
+    p, li {
+      color: var(--muted);
+      line-height: 1.58;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .summary > div {
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: var(--soft);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .summary strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+    }
+
+    .chip.good {
+      color: var(--good);
+      background: rgba(130, 231, 255, 0.12);
+      border-color: rgba(130, 231, 255, 0.2);
+    }
+
+    .draft-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 18px;
+      margin-top: 16px;
+    }
+
+    .draft-card {
+      overflow: hidden;
+    }
+
+    .canvas-shell {
+      padding: 14px;
+      background: linear-gradient(180deg, rgba(5, 10, 20, 0.98), rgba(10, 15, 28, 0.98));
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 16px;
+      background: #050a12;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .body {
+      padding: 18px;
+    }
+
+    .body h3 {
+      margin-bottom: 8px;
+      font-size: 20px;
+    }
+
+    .body p {
+      margin: 0 0 10px;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .callout {
+      margin-top: 18px;
+      padding: 18px 20px;
+      border-radius: 18px;
+      border: 1px solid rgba(130, 231, 255, 0.16);
+      background: rgba(130, 231, 255, 0.07);
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <span class="eyebrow">Bioma 0 / atlas real del juego</span>
+      <h1>Versiones usando exactamente los tiles del primer mapa</h1>
+      <p>
+        Cambie la base de trabajo por completo: estas propuestas usan solo el atlas
+        <strong>`brunich_updown_atlas.png`</strong>, que es el mismo del cuarto ya implementado.
+        Asi la continuidad sale sola porque toda la familia ya nacio como mapa jugable.
+      </p>
+      <div class="summary">
+        <div>
+          <strong>Atlas base</strong>
+          `floor_plain`, `floor_panel`, `floor_grid`, `pit_deep`, `wall_bevel`, `panel_gold`, `door_hatch`, `neon_strip`
+        </div>
+        <div>
+          <strong>Regla de esta ronda</strong>
+          Nada de concepts ni hojas nuevas. Solo el lenguaje visual que ya funciona dentro del juego.
+        </div>
+        <div>
+          <strong>Objetivo</strong>
+          Comparar estructura de cuarto, no inventar otro estilo.
+        </div>
+      </div>
+      <div class="chip-row">
+        <span class="chip good">Mismo atlas del mapa actual</span>
+        <span class="chip good">Continuidad garantizada</span>
+        <span class="chip good">Versiones comparables</span>
+      </div>
+    </section>
+
+    <section class="section-card">
+      <h2>Cuatro versiones</h2>
+      <p>
+        La primera replica la idea del cuarto actual para tener referencia. Las otras tres exploran cambios de ritmo
+        y silueta usando exactamente los mismos 8 tiles.
+      </p>
+      <div class="draft-grid">
+        <article class="draft-card">
+          <div class="canvas-shell"><canvas id="draft-1" width="640" height="320"></canvas></div>
+          <div class="body">
+            <h3>01 / Implementado actual</h3>
+            <p>La referencia base. Mantiene salida superior, plataforma central y zonas hundidas en las esquinas.</p>
+            <ul>
+              <li>Estructura: la logica del mapa actual</li>
+              <li>Lectura: segura y muy clara</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="draft-card">
+          <div class="canvas-shell"><canvas id="draft-2" width="640" height="320"></canvas></div>
+          <div class="body">
+            <h3>02 / Rib Cage</h3>
+            <p>Mas comprimido hacia el centro. Los costados se hunden mas y el nucleo dorado se siente protegido.</p>
+            <ul>
+              <li>Estructura: ribs mas cercanas y plataforma reforzada</li>
+              <li>Lectura: central y combativa</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="draft-card">
+          <div class="canvas-shell"><canvas id="draft-3" width="640" height="320"></canvas></div>
+          <div class="body">
+            <h3>03 / Split Bridge</h3>
+            <p>Dos grandes bahias hundidas laterales con un puente tecnico al centro. Se siente mas dramatico.</p>
+            <ul>
+              <li>Estructura: vacios laterales y puente central</li>
+              <li>Lectura: mas tension espacial</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="draft-card">
+          <div class="canvas-shell"><canvas id="draft-4" width="640" height="320"></canvas></div>
+          <div class="body">
+            <h3>04 / Reactor Spine</h3>
+            <p>Una espina vertical de energia ordena todo el cuarto. Es la version mas futurista con el mismo set.</p>
+            <ul>
+              <li>Estructura: columna central y carriles neon</li>
+              <li>Lectura: muy dirigida y limpia</li>
+            </ul>
+          </div>
+        </article>
+      </div>
+
+      <div class="callout">
+        <strong>Mi recomendacion:</strong> `02 / Rib Cage` si quieres algo nuevo sin perder la calidad del primer mapa.
+        `01` sigue siendo la referencia mas segura. `03` y `04` ya son para probar una direccion un poco mas marcada.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const TILE = 16;
+    const COLS = 40;
+    const ROWS = 20;
+    const ATLAS_TILE = 32;
+    const EXIT_START = 17;
+    const EXIT_END = 22;
+
+    const atlasImage = new Image();
+    atlasImage.src = "../../art/generated/brunich/brunich_updown_atlas.png";
+
+    const TILES = {
+      floor_plain: { col: 0, row: 0 },
+      floor_panel: { col: 1, row: 0 },
+      floor_grid: { col: 2, row: 0 },
+      pit_deep: { col: 3, row: 0 },
+      wall_bevel: { col: 0, row: 1 },
+      panel_gold: { col: 1, row: 1 },
+      door_hatch: { col: 2, row: 1 },
+      neon_strip: { col: 3, row: 1 }
+    };
+
+    function tile(key, rot = 0) {
+      return { key, rot };
+    }
+
+    function isExitVoid(col, row) {
+      return row === 0 && col >= EXIT_START && col <= EXIT_END;
+    }
+
+    function isExitThreshold(col, row) {
+      return row === 1 && col >= EXIT_START && col <= EXIT_END;
+    }
+
+    function isExitSignal(col, row) {
+      return row === 2 && col >= EXIT_START + 1 && col <= EXIT_END - 1;
+    }
+
+    function isExitFrame(col, row) {
+      return (col === EXIT_START - 1 || col === EXIT_END + 1) && row >= 1 && row <= 4;
+    }
+
+    function borderTile(col, row) {
+      if (row === 0 && col >= EXIT_START - 1 && col <= EXIT_END + 1) return tile("panel_gold");
+      if (row === 0 || row === ROWS - 1) return col % 2 === 0 ? tile("wall_bevel") : tile("neon_strip");
+      return tile("wall_bevel");
+    }
+
+    function baseFloor(col, row) {
+      if (col >= 10 && col <= 29 && row >= 5 && row <= 14) {
+        return (col + row) % 2 === 0 ? tile("floor_grid") : tile("floor_panel");
+      }
+      if ((col + row) % 5 === 0) return tile("floor_panel");
+      return tile("floor_plain");
+    }
+
+    function drawAtlasTile(ctx, tileDef, col, row) {
+      if (!tileDef) return;
+      const def = TILES[tileDef.key];
+      const sx = def.col * ATLAS_TILE;
+      const sy = def.row * ATLAS_TILE;
+      const dx = col * TILE;
+      const dy = row * TILE;
+
+      if (!tileDef.rot) {
+        ctx.drawImage(atlasImage, sx, sy, ATLAS_TILE, ATLAS_TILE, dx, dy, TILE, TILE);
+        return;
+      }
+
+      ctx.save();
+      ctx.translate(dx + TILE / 2, dy + TILE / 2);
+      ctx.rotate((Math.PI / 2) * tileDef.rot);
+      ctx.drawImage(atlasImage, sx, sy, ATLAS_TILE, ATLAS_TILE, -TILE / 2, -TILE / 2, TILE, TILE);
+      ctx.restore();
+    }
+
+    function currentLayout(col, row) {
+      if (isExitVoid(col, row)) return null;
+      if (row === 0 || row === ROWS - 1 || col === 0 || col === COLS - 1) return borderTile(col, row);
+      if (isExitThreshold(col, row)) return tile("door_hatch");
+      if (isExitSignal(col, row)) return tile("neon_strip");
+      if (isExitFrame(col, row)) return tile("panel_gold");
+
+      const sunk = (col >= 4 && col <= 6 && row >= 4 && row <= 6)
+        || (col >= 33 && col <= 35 && row >= 4 && row <= 6)
+        || (col >= 4 && col <= 6 && row >= 13 && row <= 15)
+        || (col >= 33 && col <= 35 && row >= 13 && row <= 15);
+      if (sunk) return tile("pit_deep");
+
+      if ((col === 12 || col === 27) && row >= 7 && row <= 12) return tile("wall_bevel");
+
+      const core = ((row >= 8 && row <= 11 && col >= 16 && col <= 23)
+        || ((row === 9 || row === 10) && (col === 15 || col === 24)));
+      if (core) return tile("panel_gold");
+
+      const spawn = (col >= 2 && col <= 10 && row >= 7 && row <= 12)
+        || (col >= 29 && col <= 37 && row >= 7 && row <= 12);
+      if (spawn) return tile("floor_plain");
+
+      if ((row === 5 || row === 14) && col >= 11 && col <= 28) return tile("floor_panel");
+      return baseFloor(col, row);
+    }
+
+    function ribCageLayout(col, row) {
+      if (isExitVoid(col, row)) return null;
+      if (row === 0 || row === ROWS - 1 || col === 0 || col === COLS - 1) return borderTile(col, row);
+      if (isExitThreshold(col, row)) return tile("door_hatch");
+      if (isExitSignal(col, row)) return tile("neon_strip");
+      if (isExitFrame(col, row)) return tile("panel_gold");
+
+      const sunk = (col >= 4 && col <= 9 && row >= 6 && row <= 13)
+        || (col >= 30 && col <= 35 && row >= 6 && row <= 13);
+      if (sunk) return tile("pit_deep");
+
+      if ((col === 14 || col === 25) && row >= 5 && row <= 14) return tile("wall_bevel");
+      if ((row === 6 || row === 13) && col >= 17 && col <= 22) return tile("neon_strip");
+
+      const core = ((row >= 8 && row <= 11 && col >= 17 && col <= 22)
+        || ((row === 9 || row === 10) && (col === 16 || col === 23)));
+      if (core) return tile("panel_gold");
+
+      if ((row === 5 || row === 14) && col >= 15 && col <= 24) return tile("floor_panel");
+      if ((col >= 11 && col <= 13 || col >= 26 && col <= 28) && row >= 7 && row <= 12) return tile("floor_grid");
+      return baseFloor(col, row);
+    }
+
+    function splitBridgeLayout(col, row) {
+      if (isExitVoid(col, row)) return null;
+      if (row === 0 || row === ROWS - 1 || col === 0 || col === COLS - 1) return borderTile(col, row);
+      if (isExitThreshold(col, row)) return tile("door_hatch");
+      if (isExitSignal(col, row)) return tile("neon_strip");
+      if (isExitFrame(col, row)) return tile("panel_gold");
+
+      const sunk = (col >= 6 && col <= 14 && row >= 7 && row <= 12)
+        || (col >= 25 && col <= 33 && row >= 7 && row <= 12);
+      if (sunk) return tile("pit_deep");
+
+      if ((col === 15 || col === 24) && row >= 6 && row <= 13) return tile("wall_bevel");
+      if ((row === 8 || row === 11) && col >= 16 && col <= 23) return tile("neon_strip");
+      if (row >= 9 && row <= 10 && col >= 16 && col <= 23) return tile("panel_gold");
+      if ((col === 17 || col === 22) && row >= 6 && row <= 7) return tile("door_hatch");
+      if ((col === 17 || col === 22) && row >= 12 && row <= 13) return tile("door_hatch", 2);
+      return baseFloor(col, row);
+    }
+
+    function reactorSpineLayout(col, row) {
+      if (isExitVoid(col, row)) return null;
+      if (row === 0 || row === ROWS - 1 || col === 0 || col === COLS - 1) return borderTile(col, row);
+      if (isExitThreshold(col, row)) return tile("door_hatch");
+      if (isExitSignal(col, row)) return tile("neon_strip");
+      if (isExitFrame(col, row)) return tile("panel_gold");
+
+      const cornerPits = (col >= 4 && col <= 7 && row >= 4 && row <= 7)
+        || (col >= 32 && col <= 35 && row >= 4 && row <= 7)
+        || (col >= 4 && col <= 7 && row >= 12 && row <= 15)
+        || (col >= 32 && col <= 35 && row >= 12 && row <= 15);
+      if (cornerPits) return tile("pit_deep");
+
+      if ((col === 17 || col === 22) && row >= 5 && row <= 14) return tile("neon_strip", 1);
+      if (col >= 18 && col <= 21 && row >= 6 && row <= 13) return tile("panel_gold");
+      if ((row === 6 || row === 13) && col >= 14 && col <= 25) return tile("floor_panel");
+      if ((col === 15 || col === 24) && row >= 7 && row <= 12) return tile("wall_bevel");
+      if ((row === 9 || row === 10) && (col === 16 || col === 23)) return tile("door_hatch");
+      return baseFloor(col, row);
+    }
+
+    function render(canvasId, picker) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          drawAtlasTile(ctx, picker(col, row), col, row);
+        }
+      }
+    }
+
+    atlasImage.onload = () => {
+      render("draft-1", currentLayout);
+      render("draft-2", ribCageLayout);
+      render("draft-3", splitBridgeLayout);
+      render("draft-4", reactorSpineLayout);
+    };
+
+    atlasImage.onerror = (error) => {
+      console.error("No se pudo cargar el atlas Brunich", error);
+    };
+  </script>
+</body>
+</html>

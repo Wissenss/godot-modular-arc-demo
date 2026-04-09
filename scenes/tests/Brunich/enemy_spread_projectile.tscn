@@ -1,0 +1,54 @@
+[gd_scene format=3 uid="uid://brnsprdptsc01"]
+
+[ext_resource type="Script" uid="uid://brnc1eprojgd1" path="res://scenes/tests/Brunich/enemy_projectile.gd" id="1_eproj"]
+[ext_resource type="PackedScene" uid="uid://dj21fnn1c45e5" path="res://scenes/components/hurtbox_comp.tscn" id="2_hrbox"]
+[ext_resource type="PackedScene" uid="uid://cy0ur7ijrky36" path="res://scenes/components/constant_velocity_comp.tscn" id="3_cvel"]
+[ext_resource type="Shader" uid="uid://brnecoreshdr1" path="res://scenes/tests/Brunich/energy_core_shader.gdshader" id="4_shdr"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_spread"]
+shader = ExtResource("4_shdr")
+shader_parameter/pulse_speed = 12.0
+shader_parameter/glow_intensity = 1.25
+shader_parameter/shimmer_rate = 24.0
+shader_parameter/shimmer_strength = 0.55
+shader_parameter/flare_cycle = 4.2
+shader_parameter/flare_strength = 0.7
+
+[sub_resource type="Curve" id="Curve_eproj"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(0.32, 0.18), 0.0, 0.0, 0, 0, Vector2(1.0, 0), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[node name="enemy_spread_projectile" type="Node2D"]
+script = ExtResource("1_eproj")
+
+[node name="outer_ring" type="Polygon2D" parent="."]
+material = SubResource("ShaderMaterial_spread")
+scale = Vector2(5.4, 5.4)
+color = Color(1.0, 0.76, 0.08, 0.92)
+polygon = PackedVector2Array(1.2, 0, 0.6, 0.55, 0, 0.95, -0.6, 0.55, -1.2, 0, -0.6, -0.55, 0, -0.95, 0.6, -0.55)
+
+[node name="core_polygon" type="Polygon2D" parent="."]
+scale = Vector2(3.2, 3.2)
+color = Color(0.28, 0.12, 0.02, 1.0)
+polygon = PackedVector2Array(1.0, 0, 0.3, 0.72, -0.65, 0.48, -0.65, -0.48, 0.3, -0.72)
+
+[node name="code_polygon" type="Polygon2D" parent="."]
+scale = Vector2(2.4, 2.4)
+color = Color(1.0, 0.95, 0.70, 0.98)
+polygon = PackedVector2Array(-1.0, -0.12, 0.8, -0.12, 0.8, 0.18, -1.0, 0.18, -0.18, -0.7, 0.08, -0.7, 0.08, 0.78, -0.18, 0.78)
+
+[node name="hurtbox_comp" parent="." instance=ExtResource("2_hrbox")]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="hurtbox_comp"]
+polygon = PackedVector2Array(1.6, 0, 1.0, 0.9, 0, 1.3, -1.0, 0.9, -1.6, 0, -1.0, -0.9, 0, -1.3, 1.0, -0.9)
+
+[node name="constant_velocity_comp" parent="." instance=ExtResource("3_cvel")]
+
+[node name="trail_particles" type="CPUParticles2D" parent="."]
+amount = 10
+direction = Vector2(0, 0)
+gravity = Vector2(0, 0)
+scale_amount_min = 4.0
+scale_amount_max = 6.5
+scale_amount_curve = SubResource("Curve_eproj")
+color = Color(1.0, 0.72, 0.08, 0.65)

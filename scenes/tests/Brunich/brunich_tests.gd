@@ -1,6 +1,56 @@
 extends Node2D
 
-const ENEMY_SCENE := preload("res://scenes/tests/Brunich/enemy_regulated.tscn")
+## Enemy roster — escalates in quantity and variety as rooms advance.
+const ENEMY_REGULATED_SCENE := preload("res://scenes/tests/Brunich/enemy_regulated.tscn")
+const ENEMY_SPREAD_SCENE := preload("res://scenes/tests/Brunich/enemy_spread.tscn")
+const ENEMY_PIERCE_SCENE := preload("res://scenes/tests/Brunich/enemy_pierce.tscn")
+const ENEMY_SLOWBEAM_SCENE := preload("res://scenes/tests/Brunich/enemy_slowbeam.tscn")
+const ENEMY_SCENES := [
+	ENEMY_REGULATED_SCENE,
+	ENEMY_SPREAD_SCENE,
+	ENEMY_PIERCE_SCENE,
+	ENEMY_SLOWBEAM_SCENE,
+]
+const BOSS_SCENE := ENEMY_SLOWBEAM_SCENE
+const BIOME_ROOM_COUNT := 10
+const BOSS_LAYOUT_IDS := [
+	&"reactor_spine",
+	&"split_bridge",
+]
+const LAYOUT_SPAWN_SLOTS := {
+	&"classic": [
+		Vector2(950.0, 324.0),
+		Vector2(1030.0, 220.0),
+		Vector2(1030.0, 428.0),
+		Vector2(840.0, 220.0),
+		Vector2(840.0, 428.0),
+		Vector2(1090.0, 324.0),
+	],
+	&"rib_cage": [
+		Vector2(760.0, 200.0),
+		Vector2(760.0, 448.0),
+		Vector2(892.0, 248.0),
+		Vector2(892.0, 400.0),
+		Vector2(1020.0, 152.0),
+		Vector2(1020.0, 488.0),
+	],
+	&"split_bridge": [
+		Vector2(704.0, 168.0),
+		Vector2(704.0, 480.0),
+		Vector2(608.0, 324.0),
+		Vector2(940.0, 120.0),
+		Vector2(940.0, 520.0),
+		Vector2(760.0, 324.0),
+	],
+	&"reactor_spine": [
+		Vector2(760.0, 200.0),
+		Vector2(760.0, 448.0),
+		Vector2(960.0, 200.0),
+		Vector2(960.0, 448.0),
+		Vector2(640.0, 324.0),
+		Vector2(1080.0, 324.0),
+	],
+}
 
 const ROOM_SIZE := Vector2(1280.0, 640.0)
 const PLAYER_SPAWN := Vector2(180.0, 324.0)
@@ -19,16 +69,22 @@ const HUD_BAR_GAP := 10.0
 const HUD_FRAME_COLOR := Color(0.12, 0.09, 0.16, 0.94)
 const HUD_BACK_COLOR := Color(0.03, 0.03, 0.05, 0.90)
 const HUD_HEALTH_COLOR := Color(0.88, 0.16, 0.16, 0.96)
-const HUD_MANA_COLOR := Color(0.06, 0.12, 0.32, 0.96)
+const HUD_MANA_COLOR := Color(0.06, 0.72, 0.94, 0.96)
 
 var DisableSceneReloadForTests := false
 var RestartWasRequested := false
 var ExitUnlocked := false
 var CurrentRoomIndex := 0
+var CurrentBiomeIndex := 1
+var CurrentBiomeRoomNumber := 1
+var CurrentLayoutId: StringName = &"classic"
+var IsBossRoom := false
 var CurrentPromptText := ""
 
 var _player: Node2D = null
+var _floor_tiles: TileMapLayer = null
 var _teleport_cooldown := 0.0
+var _active_room_token := 0
 var _exit_blocker_collision: CollisionShape2D = null
 var _prompt_root: Node2D = null
 var _prompt_bg: Polygon2D = null
@@ -39,19 +95,21 @@ var _health_fill: ColorRect = null
 var _mana_fill: ColorRect = null
 var _health_label: Label = null
 var _mana_label: Label = null
+var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
+	_rng.randomize()
+	_floor_tiles = get_node_or_null("floor_tiles") as TileMapLayer
 	_player = get_node_or_null("MC") as Node2D
 	if _player != null:
 		_bind_player(_player)
 		_configure_camera_limits(_player)
 		_player.global_position = PLAYER_SPAWN
 
-	_bind_existing_enemy()
 	_build_exit_blocker()
 	_build_command_prompt()
 	_build_hud()
-	_set_exit_unlocked(false)
+	_enter_current_room(true)
 	_update_hud_bars()
 
 func _process(delta: float) -> void:
@@ -67,18 +125,13 @@ func _bind_player(player: Node) -> void:
 	if not player.HealthComp.on_health_changed.is_connected(_handle_player_health_changed):
 		player.HealthComp.on_health_changed.connect(_handle_player_health_changed)
 
-func _bind_existing_enemy() -> void:
-	var enemy := get_node_or_null("EnemyRegulated") as CharacterBody2D
-	if enemy == null:
-		enemy = _spawn_enemy_for_current_room()
-	if enemy != null:
-		_bind_enemy(enemy, CurrentRoomIndex)
-
-func _bind_enemy(enemy: CharacterBody2D, room_index: int) -> void:
-	enemy.name = "EnemyRegulated"
-	enemy.position = ENEMY_SPAWN
+func _bind_enemy(enemy: CharacterBody2D, room_index: int, room_token: int, enemy_index: int) -> void:
+	enemy.name = "EnemyRegulated" if enemy_index == 0 else "EnemyRegulated_%d" % enemy_index
 	enemy.set_meta("room_index", room_index)
-	var on_enemy_died := Callable(self, "_handle_enemy_died").bind(room_index)
+	enemy.set_meta("room_token", room_token)
+	enemy.set_meta("enemy_index", enemy_index)
+	enemy.set_meta("enemy_type_id", String(enemy.scene_file_path.get_file()))
+	var on_enemy_died := Callable(self, "_handle_enemy_died").bind(room_token)
 	if not enemy.HealthComp.on_died.is_connected(on_enemy_died):
 		enemy.HealthComp.on_died.connect(on_enemy_died)
 
@@ -91,12 +144,10 @@ func _handle_player_died() -> void:
 func _reload_scene() -> void:
 	get_tree().reload_current_scene()
 
-func _handle_enemy_died(room_index: int) -> void:
-	if room_index != CurrentRoomIndex:
+func _handle_enemy_died(room_token: int) -> void:
+	if room_token != _active_room_token:
 		return
-	if _player != null and _player.has_method("notify_enemy_eliminated"):
-		_player.notify_enemy_eliminated()
-	_set_exit_unlocked(true)
+	call_deferred("_refresh_room_clear_state", room_token)
 
 func _try_context_action() -> void:
 	if _player == null:
@@ -122,28 +173,184 @@ func debug_try_context_action() -> void:
 
 func _advance_room() -> void:
 	CurrentRoomIndex += 1
-	_teleport_cooldown = ROOM_TRANSITION_LOCK
+	if CurrentBiomeRoomNumber >= BIOME_ROOM_COUNT:
+		CurrentBiomeIndex += 1
+		CurrentBiomeRoomNumber = 1
+	else:
+		CurrentBiomeRoomNumber += 1
+	_enter_current_room()
+
+func get_active_room_enemy_count() -> int:
+	return get_active_room_enemies().size()
+
+func get_active_room_enemies() -> Array[CharacterBody2D]:
+	var enemies: Array[CharacterBody2D] = []
+	for node in get_tree().get_nodes_in_group("regulated_enemy"):
+		if not (node is CharacterBody2D):
+			continue
+		var enemy := node as CharacterBody2D
+		if enemy.get_parent() != self:
+			continue
+		if enemy.is_queued_for_deletion():
+			continue
+		if not enemy.has_meta("room_token"):
+			continue
+		if int(enemy.get_meta("room_token")) != _active_room_token:
+			continue
+		var health_comp = enemy.get_node_or_null("health_comp")
+		if health_comp == null or health_comp.get_health() <= 0:
+			continue
+		enemies.append(enemy)
+	return enemies
+
+func debug_force_room_completion_for_tests() -> void:
+	_clear_active_enemy()
+	_set_exit_unlocked(true)
+	_clear_prompt()
+
+func debug_configure_progression_for_tests(biome_index: int, biome_room_number: int) -> void:
+	CurrentBiomeIndex = maxi(1, biome_index)
+	CurrentBiomeRoomNumber = clampi(biome_room_number, 1, BIOME_ROOM_COUNT)
+	CurrentRoomIndex = (CurrentBiomeIndex - 1) * BIOME_ROOM_COUNT + (CurrentBiomeRoomNumber - 1)
+	_enter_current_room(true)
+
+func _enter_current_room(is_forced_refresh: bool = false) -> void:
+	IsBossRoom = CurrentBiomeRoomNumber == BIOME_ROOM_COUNT
+	_active_room_token += 1
+	_teleport_cooldown = 0.0 if is_forced_refresh else ROOM_TRANSITION_LOCK
 	_clear_room_pickups()
 	_clear_active_enemy()
 	_set_exit_unlocked(false)
+	CurrentLayoutId = _choose_layout_id(is_forced_refresh)
+	if _floor_tiles != null:
+		_floor_tiles.set_layout_id(CurrentLayoutId)
 	if _player != null:
 		_player.global_position = PLAYER_SPAWN
-	var enemy := _spawn_enemy_for_current_room()
-	if enemy != null:
-		_bind_enemy(enemy, CurrentRoomIndex)
+	_spawn_enemy_wave_for_current_room()
 	_clear_prompt()
 
-func _spawn_enemy_for_current_room() -> CharacterBody2D:
-	var enemy := ENEMY_SCENE.instantiate() as CharacterBody2D
-	enemy.name = "EnemyRegulated"
-	enemy.position = ENEMY_SPAWN
-	add_child(enemy)
-	return enemy
+func _choose_layout_id(is_forced_refresh: bool) -> StringName:
+	if _floor_tiles == null:
+		return &"classic"
+	var available: Array[StringName] = _floor_tiles.get_layout_ids()
+	if available.is_empty():
+		return &"classic"
+	if is_forced_refresh and CurrentBiomeIndex == 1 and CurrentBiomeRoomNumber == 1:
+		return &"classic" if available.has(&"classic") else available[0]
+
+	var candidates: Array[StringName] = []
+	if IsBossRoom:
+		for layout_id in BOSS_LAYOUT_IDS:
+			if available.has(layout_id):
+				candidates.append(layout_id)
+	else:
+		candidates = available.duplicate()
+
+	if candidates.is_empty():
+		candidates = available.duplicate()
+
+	var filtered: Array[StringName] = []
+	for layout_id in candidates:
+		if layout_id != CurrentLayoutId:
+			filtered.append(layout_id)
+	if filtered.is_empty():
+		filtered = candidates
+
+	return filtered[_rng.randi_range(0, filtered.size() - 1)]
+
+func _spawn_enemy_wave_for_current_room() -> void:
+	var roster := _build_enemy_roster_for_current_room()
+	var slots := _get_spawn_slots_for_layout(CurrentLayoutId)
+	for enemy_index in range(roster.size()):
+		var enemy_scene := roster[enemy_index]
+		var enemy := enemy_scene.instantiate() as CharacterBody2D
+		var slot_index := mini(enemy_index, slots.size() - 1)
+		enemy.position = slots[slot_index]
+		_apply_enemy_scaling(enemy, enemy_index)
+		add_child(enemy)
+		_bind_enemy(enemy, CurrentRoomIndex, _active_room_token, enemy_index)
+
+func _build_enemy_roster_for_current_room() -> Array[PackedScene]:
+	if IsBossRoom:
+		return [BOSS_SCENE]
+
+	var count := _get_regular_room_enemy_count()
+	var pool := _get_enemy_pool_for_current_room()
+	var roster: Array[PackedScene] = []
+	var unique_pool: Array[PackedScene] = pool.duplicate()
+	unique_pool.shuffle()
+	for enemy_scene in unique_pool:
+		if roster.size() >= count:
+			break
+		roster.append(enemy_scene)
+	while roster.size() < count:
+		roster.append(pool[_rng.randi_range(0, pool.size() - 1)])
+	return roster
+
+func _get_regular_room_enemy_count() -> int:
+	var room_step := float(CurrentBiomeRoomNumber - 1)
+	return clampi(1 + int(ceil(room_step * 0.5)) + (CurrentBiomeIndex - 1), 1, 6)
+
+func _get_enemy_pool_for_current_room() -> Array[PackedScene]:
+	if CurrentBiomeRoomNumber <= 1:
+		return [ENEMY_REGULATED_SCENE]
+	if CurrentBiomeRoomNumber <= 3:
+		return [ENEMY_REGULATED_SCENE, ENEMY_SPREAD_SCENE]
+	if CurrentBiomeRoomNumber <= 5:
+		return [ENEMY_REGULATED_SCENE, ENEMY_SPREAD_SCENE, ENEMY_PIERCE_SCENE]
+	return ENEMY_SCENES.duplicate()
+
+func _get_spawn_slots_for_layout(layout_id: StringName) -> Array[Vector2]:
+	var source_slots = LAYOUT_SPAWN_SLOTS[layout_id] if LAYOUT_SPAWN_SLOTS.has(layout_id) else LAYOUT_SPAWN_SLOTS[&"classic"]
+	var slots: Array[Vector2] = []
+	for slot in source_slots:
+		slots.append(slot)
+	return slots
+
+func _apply_enemy_scaling(enemy: CharacterBody2D, enemy_index: int) -> void:
+	var room_progress := float(CurrentBiomeRoomNumber - 1)
+	var biome_progress := float(CurrentBiomeIndex - 1)
+	var health_mult := 1.0 + room_progress * 0.18 + biome_progress * 0.24
+	var speed_mult := 1.0 + room_progress * 0.025 + biome_progress * 0.04
+	var fire_mult := clampf(1.0 - room_progress * 0.035 - biome_progress * 0.03, 0.58, 1.0)
+
+	if IsBossRoom:
+		health_mult *= 2.2
+		speed_mult += 0.14
+		fire_mult = minf(fire_mult, 0.72)
+		enemy.scale = Vector2.ONE * 1.22
+	else:
+		health_mult *= 0.96 + float(enemy_index) * 0.06
+
+	enemy.MaxHealth = maxi(int(round(float(enemy.MaxHealth) * health_mult)), enemy.MaxHealth)
+	enemy.MoveSpeed *= speed_mult
+	enemy.StrafeSpeed *= speed_mult
+	enemy.DodgeSpeed *= 1.0 + room_progress * 0.03 + biome_progress * 0.04
+	enemy.DodgeCooldown = maxf(enemy.DodgeCooldown * fire_mult, 0.32)
+	enemy.ProjectileAlertRange += room_progress * 10.0
+
+	var weapon: Node = null
+	for child in enemy.get_children():
+		if child.has_method("get_attack_profile_for_player"):
+			weapon = child
+			break
+	if weapon != null and weapon.get("ShootInterval") != null:
+		var minimum_interval := 0.34 if not IsBossRoom else 0.24
+		weapon.ShootInterval = maxf(float(weapon.ShootInterval) * fire_mult, minimum_interval)
+
+func _refresh_room_clear_state(room_token: int) -> void:
+	if room_token != _active_room_token:
+		return
+	if get_active_room_enemy_count() == 0:
+		_set_exit_unlocked(true)
 
 func _clear_active_enemy() -> void:
-	var enemy := get_node_or_null("EnemyRegulated") as CharacterBody2D
-	if enemy != null:
-		enemy.queue_free()
+	for node in get_tree().get_nodes_in_group("regulated_enemy"):
+		if not (node is CharacterBody2D):
+			continue
+		var enemy := node as CharacterBody2D
+		if enemy.get_parent() == self and is_instance_valid(enemy):
+			enemy.queue_free()
 
 func _clear_room_pickups() -> void:
 	for pickup in get_tree().get_nodes_in_group("enemy_attack_pickup"):
@@ -163,17 +370,9 @@ func _is_room_complete(room_index: int) -> bool:
 	return not _has_live_enemy_in_room(room_index)
 
 func _has_live_enemy_in_room(room_index: int) -> bool:
-	var enemy := get_node_or_null("EnemyRegulated") as CharacterBody2D
-	if enemy == null:
+	if room_index != CurrentRoomIndex:
 		return false
-	if enemy.is_queued_for_deletion():
-		return false
-	if not enemy.has_meta("room_index"):
-		return false
-	if int(enemy.get_meta("room_index")) != room_index:
-		return false
-	var health_comp = enemy.get_node_or_null("health_comp")
-	return health_comp != null and health_comp.get_health() > 0
+	return get_active_room_enemy_count() > 0
 
 func _set_exit_unlocked(unlocked: bool) -> void:
 	ExitUnlocked = unlocked
@@ -296,7 +495,7 @@ func _build_hud() -> void:
 	_health_fill = health_bar["fill"] as ColorRect
 	_health_label = health_bar["label"] as Label
 
-	var mana_bar := _create_hud_bar("MN", Vector2(0.0, HUD_BAR_SIZE.y + HUD_BAR_GAP), HUD_MANA_COLOR)
+	var mana_bar := _create_hud_bar("CY", Vector2(0.0, HUD_BAR_SIZE.y + HUD_BAR_GAP), HUD_MANA_COLOR)
 	_mana_fill = mana_bar["fill"] as ColorRect
 	_mana_label = mana_bar["label"] as Label
 
@@ -362,4 +561,12 @@ func _update_hud_bars() -> void:
 
 	_health_fill.size.x = HUD_BAR_SIZE.x * health_ratio
 	_health_fill.size.y = HUD_BAR_SIZE.y
-	_mana_fill.size = HUD_BAR_SIZE
+
+	var ciclos_ratio := 1.0
+	if _player != null and _player.has_method("get_ciclos"):
+		var max_cy := 100.0
+		if _player.get("MAX_CICLOS") != null:
+			max_cy = float(_player.MAX_CICLOS)
+		ciclos_ratio = clampf(_player.get_ciclos() / max_cy, 0.0, 1.0)
+	_mana_fill.size.x = HUD_BAR_SIZE.x * ciclos_ratio
+	_mana_fill.size.y = HUD_BAR_SIZE.y

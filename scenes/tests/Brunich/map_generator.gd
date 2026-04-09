@@ -23,11 +23,22 @@ const T_DOOR_HATCH := Vector2i(2, 1)
 const T_NEON_STRIP := Vector2i(3, 1)
 const INVALID_TILE := Vector2i(-1, -1)
 
+const LAYOUT_CLASSIC: StringName = &"classic"
+const LAYOUT_RIB_CAGE: StringName = &"rib_cage"
+const LAYOUT_SPLIT_BRIDGE: StringName = &"split_bridge"
+const LAYOUT_REACTOR_SPINE: StringName = &"reactor_spine"
+const LAYOUT_IDS := [
+	LAYOUT_CLASSIC,
+	LAYOUT_RIB_CAGE,
+	LAYOUT_SPLIT_BRIDGE,
+	LAYOUT_REACTOR_SPINE,
+]
+
+var CurrentLayoutId: StringName = LAYOUT_CLASSIC
+
 func _ready() -> void:
 	tile_set = _build_tileset()
-	_generate()
-	_tint_backdrop()
-	_ensure_arena_bounds()
+	_refresh_room()
 
 func _build_tileset() -> TileSet:
 	var image := Image.load_from_file(ProjectSettings.globalize_path(ATLAS_PATH))
@@ -44,6 +55,30 @@ func _build_tileset() -> TileSet:
 	ts.tile_size = Vector2i(TILE_SIZE, TILE_SIZE)
 	ts.add_source(atlas, 0)
 	return ts
+
+func get_layout_id() -> StringName:
+	return CurrentLayoutId
+
+func get_layout_ids() -> Array[StringName]:
+	var layout_ids: Array[StringName] = []
+	for layout_id in LAYOUT_IDS:
+		layout_ids.append(layout_id)
+	return layout_ids
+
+func set_layout_id(layout_id: StringName) -> void:
+	var resolved_layout := layout_id
+	if not LAYOUT_IDS.has(resolved_layout):
+		resolved_layout = LAYOUT_CLASSIC
+	if CurrentLayoutId == resolved_layout and get_used_cells().size() > 0:
+		return
+	CurrentLayoutId = resolved_layout
+	if is_inside_tree():
+		_refresh_room()
+
+func _refresh_room() -> void:
+	_generate()
+	_tint_backdrop()
+	_ensure_arena_bounds()
 
 func _generate() -> void:
 	clear()
@@ -71,6 +106,17 @@ func _pick(col: int, row: int) -> Vector2i:
 	if _is_exit_frame(col, row):
 		return T_PANEL_GOLD
 
+	match CurrentLayoutId:
+		LAYOUT_RIB_CAGE:
+			return _pick_rib_cage(col, row)
+		LAYOUT_SPLIT_BRIDGE:
+			return _pick_split_bridge(col, row)
+		LAYOUT_REACTOR_SPINE:
+			return _pick_reactor_spine(col, row)
+		_:
+			return _pick_classic(col, row)
+
+func _pick_classic(col: int, row: int) -> Vector2i:
 	if _is_sunken_corner(col, row):
 		return T_PIT_DEEP
 
@@ -85,6 +131,69 @@ func _pick(col: int, row: int) -> Vector2i:
 
 	if _is_mechanical_spine(col, row):
 		return T_FLOOR_PANEL
+
+	return _pick_floor_variant(col, row)
+
+func _pick_rib_cage(col: int, row: int) -> Vector2i:
+	if _matches_rect(col, row, 4, 9, 6, 13) or _matches_rect(col, row, 30, 35, 6, 13):
+		return T_PIT_DEEP
+
+	if ((col == 14) or (col == 25)) and row >= 5 and row <= 14:
+		return T_WALL_BEVEL
+
+	if (row == 6 or row == 13) and col >= 17 and col <= 22:
+		return T_NEON_STRIP
+
+	if ((row >= 8 and row <= 11 and col >= 17 and col <= 22)
+		or ((row == 9 or row == 10) and (col == 16 or col == 23))):
+		return T_PANEL_GOLD
+
+	if (row == 5 or row == 14) and col >= 15 and col <= 24:
+		return T_FLOOR_PANEL
+
+	if (((col >= 11 and col <= 13) or (col >= 26 and col <= 28)) and row >= 7 and row <= 12):
+		return T_FLOOR_GRID
+
+	return _pick_floor_variant(col, row)
+
+func _pick_split_bridge(col: int, row: int) -> Vector2i:
+	if _matches_rect(col, row, 6, 14, 7, 12) or _matches_rect(col, row, 25, 33, 7, 12):
+		return T_PIT_DEEP
+
+	if (col == 15 or col == 24) and row >= 6 and row <= 13:
+		return T_WALL_BEVEL
+
+	if (row == 8 or row == 11) and col >= 16 and col <= 23:
+		return T_NEON_STRIP
+
+	if row >= 9 and row <= 10 and col >= 16 and col <= 23:
+		return T_PANEL_GOLD
+
+	if (col == 17 or col == 22) and ((row >= 6 and row <= 7) or (row >= 12 and row <= 13)):
+		return T_DOOR_HATCH
+
+	return _pick_floor_variant(col, row)
+
+func _pick_reactor_spine(col: int, row: int) -> Vector2i:
+	if _matches_rect(col, row, 4, 7, 4, 7) or _matches_rect(col, row, 32, 35, 4, 7):
+		return T_PIT_DEEP
+	if _matches_rect(col, row, 4, 7, 12, 15) or _matches_rect(col, row, 32, 35, 12, 15):
+		return T_PIT_DEEP
+
+	if (col == 17 or col == 22) and row >= 5 and row <= 14:
+		return T_NEON_STRIP
+
+	if col >= 18 and col <= 21 and row >= 6 and row <= 13:
+		return T_PANEL_GOLD
+
+	if (row == 6 or row == 13) and col >= 14 and col <= 25:
+		return T_FLOOR_PANEL
+
+	if (col == 15 or col == 24) and row >= 7 and row <= 12:
+		return T_WALL_BEVEL
+
+	if (row == 9 or row == 10) and (col == 16 or col == 23):
+		return T_DOOR_HATCH
 
 	return _pick_floor_variant(col, row)
 
@@ -133,6 +242,9 @@ func _is_spawn_lane(col: int, row: int) -> bool:
 
 func _is_mechanical_spine(col: int, row: int) -> bool:
 	return (row == 5 or row == 14) and col >= 11 and col <= 28
+
+func _matches_rect(col: int, row: int, left: int, right: int, top: int, bottom: int) -> bool:
+	return col >= left and col <= right and row >= top and row <= bottom
 
 func _tint_backdrop() -> void:
 	if get_parent() == null:

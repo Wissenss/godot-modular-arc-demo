@@ -38,6 +38,15 @@ const FACE_ROOT_SCALE := 0.904
 const PARTICLE_SPEED_MULTIPLIER := 0.5
 const PARTICLE_LIFETIME_MULTIPLIER := 1.45
 
+# --- Ciclos (processing capacity used for hackeo) ---
+const MAX_CICLOS := 100.0
+const CICLOS_REGEN_RATE := 7.0      # per second (passive)
+const CICLOS_KILL_REWARD := 20.0    # gained on enemy eliminated
+const HACKEO_RANGE := 92.0          # max distance to hackeo target
+const HACKEO_COST := 35.0           # ciclos consumed per hackeo
+const HACKEO_CICLOS_REWARD := 15.0  # ciclos returned after successful hackeo
+const HACKEO_HEALTH_THRESHOLD := 0.42  # target must be below this HP ratio
+
 var ControllerComp: ControllerComponent
 var ConstantVelocityComp: ConstantVelocityComponent
 var BodyParticles: CPUParticles2D
@@ -91,6 +100,9 @@ var _hack_popup_bg: Polygon2D
 var _hack_popup_label: Label
 var _hack_popup_message := ""
 var _hack_popup_timer := 0.0
+var Ciclos := MAX_CICLOS * 0.5      # start at 50 ciclos
+var _slow_timer := 0.0
+var _slow_factor := 0.0
 
 func _ready() -> void:
 	add_to_group("player")
@@ -167,6 +179,13 @@ func _process(delta: float) -> void:
 	_update_hack_popup(delta)
 	_update_visual_state(delta, is_attacking)
 
+	# Ciclos passive regen
+	Ciclos = minf(Ciclos + CICLOS_REGEN_RATE * delta, MAX_CICLOS)
+
+	# Hackeo action (H key)
+	if InputMap.has_action("hackeo") and Input.is_action_just_pressed("hackeo"):
+		try_hackeo()
+
 func _physics_process(delta: float) -> void:
 	if _dash_timer > 0.0:
 		self.position += _dash_direction * DASH_SPEED * delta
@@ -225,7 +244,9 @@ func _handle_on_died() -> void:
 func _update_visual_state(delta: float, is_attacking: bool) -> void:
 	var is_moving := self.ConstantVelocityComp.Direction != Vector2.ZERO or _dash_timer > 0.0
 	_weapon_swap_buff_timer = maxf(_weapon_swap_buff_timer - delta, 0.0)
-	self.ConstantVelocityComp.Speed = MOVE_SPEED + (WEAPON_SWAP_SPEED_BONUS if _weapon_swap_buff_timer > 0.0 else 0.0)
+	_slow_timer = maxf(_slow_timer - delta, 0.0)
+	var slow_mult := 1.0 - _slow_factor * (1.0 if _slow_timer > 0.0 else 0.0)
+	self.ConstantVelocityComp.Speed = (MOVE_SPEED * slow_mult) + (WEAPON_SWAP_SPEED_BONUS if _weapon_swap_buff_timer > 0.0 else 0.0)
 	_heal_flash_timer = maxf(_heal_flash_timer - delta, 0.0)
 	var move_vector := self.ConstantVelocityComp.Direction
 	if move_vector == Vector2.ZERO and _dash_timer > 0.0:
@@ -355,6 +376,8 @@ func _ensure_input_actions() -> void:
 		InputMap.add_action("dash")
 	if not InputMap.has_action("steal"):
 		InputMap.add_action("steal")
+	if not InputMap.has_action("hackeo"):
+		InputMap.add_action("hackeo")
 
 	if not _action_has_mouse_button("attack", MOUSE_BUTTON_LEFT):
 		var attack_event := InputEventMouseButton.new()
@@ -370,6 +393,11 @@ func _ensure_input_actions() -> void:
 		var steal_event := InputEventKey.new()
 		steal_event.physical_keycode = KEY_E
 		InputMap.action_add_event("steal", steal_event)
+
+	if not _action_has_key("hackeo", KEY_H):
+		var hackeo_event := InputEventKey.new()
+		hackeo_event.physical_keycode = KEY_H
+		InputMap.action_add_event("hackeo", hackeo_event)
 
 func _action_has_mouse_button(action: StringName, button: MouseButton) -> bool:
 	for event in InputMap.action_get_events(action):
@@ -542,7 +570,50 @@ func get_current_face_expression() -> String:
 	return _resolved_face_expression
 
 func notify_enemy_eliminated() -> void:
+	Ciclos = minf(Ciclos + CICLOS_KILL_REWARD, MAX_CICLOS)
 	set_face_expression("happy", 4.0)
+
+func get_ciclos() -> float:
+	return Ciclos
+
+func apply_slow(factor: float, duration: float) -> void:
+	_slow_factor = maxf(factor, _slow_factor)
+	_slow_timer = maxf(duration, _slow_timer)
+
+func try_hackeo() -> bool:
+	if Ciclos < HACKEO_COST:
+		_show_hack_popup("ciclos.insuficientes()")
+		return false
+
+	var best_enemy: Node = null
+	var best_dist := HACKEO_RANGE
+
+	for enemy_node in get_tree().get_nodes_in_group("regulated_enemy"):
+		if not is_instance_valid(enemy_node):
+			continue
+		var dist := global_position.distance_to(enemy_node.global_position)
+		if dist > best_dist:
+			continue
+		var hc := enemy_node.get_node_or_null("health_comp")
+		if hc == null:
+			continue
+		var hp_ratio := float(hc.get_health()) / float(hc.get_max_health())
+		if hp_ratio > HACKEO_HEALTH_THRESHOLD:
+			continue
+		best_enemy = enemy_node
+		best_dist = dist
+
+	if best_enemy == null:
+		_show_hack_popup("target.not_found(range=%.0f)" % HACKEO_RANGE)
+		return false
+
+	Ciclos = maxf(Ciclos - HACKEO_COST, 0.0)
+	if best_enemy.has_method("trigger_hackeo"):
+		best_enemy.trigger_hackeo()
+	Ciclos = minf(Ciclos + HACKEO_CICLOS_REWARD, MAX_CICLOS)
+	_show_hack_popup("restriccion.eliminada() +%.0fcy" % HACKEO_CICLOS_REWARD)
+	set_face_expression("scan", 0.8)
+	return true
 
 func try_steal_attack() -> bool:
 	var nearest_pickup: Node2D = null
@@ -778,10 +849,10 @@ func _update_screen_sweep_lines(pulse: float, dash_boost: float, attack_boost: f
 		])
 
 func _configure_core_particles() -> void:
-	self.BodyParticles.amount = 211
+	self.BodyParticles.amount = 120
 	self.BodyParticlesDark.amount = 33
 	self.BodyParticlesBright.amount = 32
-	self.TrailParticles.amount = 162
+	self.TrailParticles.amount = 92
 	self.BodyParticles.local_coords = false
 	self.BodyParticlesDark.local_coords = false
 	self.BodyParticlesBright.local_coords = false

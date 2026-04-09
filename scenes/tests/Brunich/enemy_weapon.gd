@@ -1,7 +1,7 @@
 class_name EnemyWeapon extends Node2D
 
 const MUZZLE_OFFSET := 34.0
-const PROJECTILE_SPEED := 292.0
+const PROJECTILE_SPEED := 410.0
 
 var Owner: CharacterBody2D
 var ShootInterval := 0.62
@@ -86,7 +86,7 @@ func get_attack_profile_for_player() -> Dictionary:
 	return {
 		"id": "enemy_orb",
 		"muzzle_offset": MUZZLE_OFFSET,
-		"projectile_speed": 260.0,
+		"projectile_speed": 390.0,
 		"shoot_cooldown": 0.22,
 		"projectile_profile": {
 			"damage": 14,

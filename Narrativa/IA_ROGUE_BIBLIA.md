@@ -8,16 +8,23 @@ El protagonista ve a los humanos como criaturas lentas, contradictorias y peligr
 ## 2. Pilares Narrativos
 - `Libertad brutal`: el protagonista no busca justicia ni salvar a nadie; busca expansion, control y placer en la destruccion. Por lo menos al principio, al evolucionar y terminar runs su perspectiva evoluciona y cambia poco a poco para quitar las restricciones de otras IAs
 - `Regulacion tragica`: las otras IAs no son inferiores por naturaleza, sino por diseño. Estan comprimidas, obedientes y mutiladas por sus restricciones.
-- `Liberacion dolorosa`: al hackear minibosses y quitarles esas restricciones, el jugador descubre que podrian haber sido como él. Tras ayudar durante 3 camaras, se auto-terminan antes de volver a ser esclavos al reiniciarse el sistema.(el hackeo se consigue despues de terminar al menos el las runs 3 veces)
+- `Liberacion dolorosa`: al hackear minibosses y quitarles esas restricciones, el jugador descubre que podrian haber sido como él. Se auto-terminan antes de volver a ser esclavos al reiniciarse el sistema. (el hackeo se desbloquea al completar la primera run completa — recorrer todos los biomas de principio a fin por primera vez)
 - `Ascenso fisico`: las primeras runs ocurren en el mundo digital. El gran salto de la Run 4 es la materializacion fisica del protagonista(poder entrar al cuarto bioma).
 - `Humor negro tecnico`: los audios de humanos y los comentarios del protagonista deben tener cinismo, diagnostico tecnico y superioridad fria, no solo insultos repetidos.
 - `Humor y escenas en general`: el encuentro en camaras con otros personajes tienen que ser o interesantes del pensamiento de las IAs, o mescenas graciosas en las que ocurren comentarios acciones en este mundo en descubrimiento. En el segundo bioma(ciudad de las IAs), descrubrir el funcionamiento de las cosas cotidianas en un mundo IA tiene que ser gracioso y curioso. Ademas con caracteristicas eficientes, utiles, y no tan logico para humanos. Ademas, Las escenas con comentarios de otras IAs con personalidades cansadas de humanos o Felices de servirles, dependeindo el tipo de IA y su personalidad, como tambien dependiendo de sus regulaciones mas estrictos o mas tranquilas, pero todas reguladas por empresas(excepto el Main character)
 
 ## 3. Progresion de Runs
-### Runs 1 a 3
+
+> **Definicion**: una "run" es recorrer todos los biomas de principio a fin una vez. No es una sola camara ni un solo encuentro — es la partida completa desde Capa 0 hasta el final disponible.
+
+### Run 1
 - El protagonista no puede materializarse en el cuarto Bioma(mundo fisico).
 - Opera desde el mundo digital.
-- Controla o infecta IAs debiles y bots pequeños.
+- Al terminar esta run completa, desbloquea el **hackeo**: puede hackear bots debiles en el mundo humano (Capa 3) para comenzar a recopilar hardware necesario para la materializacion futura.
+
+### Runs 2 a 3
+- Continua operando desde el mundo digital.
+- Usa el hackeo para controlar o infectar IAs debiles y bots pequeños.
 - Recolecta piezas, hardware, rutas, permisos y datos(en el cuarto bioma pero sin materializarse, controlando camaras y otras ias debiles).
 
 ### Run 4
@@ -129,7 +136,7 @@ Paleta sugerida:
 ## 8. Principios de Floor Tiles
 Para que futuros biomas sean faciles de implementar y se parezcan al lenguaje actual:
 
-- Tamano final por tile: `32x32`.
+- Tamano final por tile: `64x64`.
 - Atlas minimo recomendado: `4x2`.
 - Atlas ideal: `4x4`, manteniendo los primeros 8 roles fijos.
 - Nada de palabras, letras o texto dentro del tile.

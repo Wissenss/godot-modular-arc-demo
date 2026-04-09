@@ -15,6 +15,9 @@ var _damage := BASE_DAMAGE
 var _visual_scale := 1.0
 var _stolen_attack := false
 var _pending_profile: Dictionary = {}
+var _pierce_count := 0      # 0 = dies on first hit; N = passes through N times
+var _slow_factor := 0.0     # 0 = no slow; 0.36 = 36% speed reduction on hit
+var _slow_duration := 1.8   # seconds the slow effect lasts
 
 func _ready() -> void:
 	add_to_group("enemy_projectile")
@@ -45,6 +48,16 @@ func _handle_on_hurt(to: Area2D, _damage: int) -> void:
 	if to is HitboxComponent and self.Owner != null and self.Owner == to.Owner:
 		return
 
+	# Apply slow effect to whatever was hit
+	if _slow_factor > 0.0 and to is HitboxComponent and to.Owner != null:
+		if to.Owner.has_method("apply_slow"):
+			to.Owner.apply_slow(_slow_factor, _slow_duration)
+
+	# Pierce: pass through instead of dying
+	if _pierce_count > 0:
+		_pierce_count -= 1
+		return
+
 	queue_free()
 
 func configure_projectile(profile: Dictionary) -> void:
@@ -53,6 +66,9 @@ func configure_projectile(profile: Dictionary) -> void:
 	_life_remaining = float(profile.get("life_time", LIFE_TIME))
 	_visual_scale = float(profile.get("visual_scale", 1.0))
 	_stolen_attack = bool(profile.get("stolen_attack", false))
+	_pierce_count = int(profile.get("pierce_count", 0))
+	_slow_factor = float(profile.get("slow_factor", 0.0))
+	_slow_duration = float(profile.get("slow_duration", 1.8))
 	if self.HurtboxComp != null:
 		self.HurtboxComp.Damage = _damage
 	_apply_visual_profile(_pending_profile)

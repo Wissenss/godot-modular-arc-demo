@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://brneswpwaptsc"]
+
+[ext_resource type="Script" uid="uid://brneswpwapgd1" path="res://scenes/tests/Brunich/enemy_spread_weapon.gd" id="1_ewep"]
+
+[node name="enemy_spread_weapon" type="Node2D"]
+script = ExtResource("1_ewep")
