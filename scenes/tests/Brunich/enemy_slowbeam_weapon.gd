@@ -4,6 +4,7 @@ class_name EnemySlowbeamWeapon extends Node2D
 
 const MUZZLE_OFFSET := 32.0
 const PROJECTILE_SPEED := 395.0
+const PROJECTILE_SCENE := preload("res://scenes/tests/Brunich/enemy_slowbeam_projectile.tscn")
 
 var Owner: CharacterBody2D
 var ShootInterval := 1.55
@@ -14,7 +15,7 @@ var _projectile_scene: PackedScene
 
 func _ready() -> void:
 	randomize()
-	_projectile_scene = preload("res://scenes/tests/Brunich/enemy_slowbeam_projectile.tscn")
+	_projectile_scene = PROJECTILE_SCENE
 
 func _process(delta: float) -> void:
 	if Owner == null:
@@ -64,6 +65,8 @@ func _shoot(direction: Vector2) -> void:
 func get_attack_profile_for_player() -> Dictionary:
 	return {
 		"id": "enemy_slowbeam",
+		"fire_mode": "single",
+		"projectile_scene": PROJECTILE_SCENE,
 		"muzzle_offset": MUZZLE_OFFSET,
 		"projectile_speed": 380.0,
 		"shoot_cooldown": 0.14,
@@ -96,4 +99,6 @@ func _get_pickup_profile() -> Dictionary:
 		"trail_color": Color(0.04, 0.82, 0.68, 0.58),
 		"trail_scale_min": 6.0,
 		"trail_scale_max": 9.0,
+		"slow_factor": 0.36,
+		"slow_duration": 1.8,
 	}

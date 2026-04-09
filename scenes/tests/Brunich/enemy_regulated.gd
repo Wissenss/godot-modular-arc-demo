@@ -21,11 +21,21 @@ const ARENA_MIN := Vector2(54, 52)
 const ARENA_MAX := Vector2(1226, 610)
 const ATTACK_PICKUP_SCRIPT := preload("res://scenes/tests/Brunich/enemy_attack_pickup.gd")
 const DEATH_SHADER := preload("res://scenes/tests/Brunich/enemy_death_shader.gdshader")
+const SCANLINE_SHADER := preload("res://scenes/tests/Brunich/scanline_shader.gdshader")
 const DEATH_DURATION := 0.62
 const FACE_NODE_NAMES := [
 	"face_shell", "face_fill", "face_glass", "face_eye", "face_pupil",
 	"face_eye_left", "face_eye_right", "face_pupil_left", "face_pupil_right",
 	"face_cross_h", "face_cross_v",
+]
+const DISPLAY_POLISH_NODE_NAMES := [
+	"body_shadow_poly",
+	"body_rim_poly",
+	"body_reflection_poly",
+	"face_blur",
+	"face_reflection",
+	"death_echo_back",
+	"death_echo_front",
 ]
 
 var HitboxComp: HitboxComponent
@@ -35,6 +45,13 @@ var Polygon: Polygon2D
 var ShieldPoly: Polygon2D
 var BodyParticles: CPUParticles2D
 var OrbitParticles: CPUParticles2D
+var BodyShadowPoly: Polygon2D
+var BodyRimPoly: Polygon2D
+var BodyReflectionPoly: Polygon2D
+var FaceBlur: Polygon2D
+var FaceReflection: Polygon2D
+var FaceScanlines: Node2D
+var FaceSweepLines: Node2D
 
 var _combat_time := 0.0
 var _alive := true
@@ -43,6 +60,7 @@ var _dodge_cooldown := 0.0
 var _dodge_vector := Vector2.ZERO
 var _shield_base_color := Color.WHITE
 var _death_material: ShaderMaterial
+var _face_sweep_polys: Array[Polygon2D] = []
 
 func _ready() -> void:
 	add_to_group("regulated_enemy")
@@ -52,6 +70,8 @@ func _ready() -> void:
 	self.OrbitParticles = $orbit_particles
 	self.Polygon.color = BaseColor
 	_shield_base_color = self.ShieldPoly.color
+	_build_body_polish()
+	_build_face_display_polish()
 
 	self.HitboxComp = $hitbox_comp
 	self.HitboxComp.Owner = self
@@ -149,6 +169,205 @@ func _update_visuals() -> void:
 	self.ShieldPoly.color = Color(_shield_base_color.r, _shield_base_color.g, _shield_base_color.b, 0.08 + pulse * 0.09)
 	self.OrbitParticles.orbit_velocity_min = -0.4 - pulse * 0.3
 	self.OrbitParticles.orbit_velocity_max = 0.4 + pulse * 0.3
+	if self.BodyShadowPoly != null:
+		self.BodyShadowPoly.position = Vector2(1.6, 2.8 + pulse * 0.6)
+		self.BodyShadowPoly.color = Color(0.0, 0.0, 0.0, 0.24 + pulse * 0.06)
+	if self.BodyRimPoly != null:
+		self.BodyRimPoly.position = Vector2(-0.8, -1.2)
+		self.BodyRimPoly.scale = Vector2.ONE * (0.84 + pulse * 0.03)
+		self.BodyRimPoly.color = _lift_color(BaseColor, 0.42, 0.18 + pulse * 0.05)
+	if self.BodyReflectionPoly != null:
+		self.BodyReflectionPoly.position = Vector2(-3.2, -4.4 + pulse * 0.3)
+		self.BodyReflectionPoly.scale = Vector2.ONE * (0.56 + pulse * 0.02)
+		self.BodyReflectionPoly.color = _lift_color(BaseColor, 0.70, 0.16 + pulse * 0.04)
+	_update_face_display_polish(pulse)
+
+func _build_body_polish() -> void:
+	self.BodyShadowPoly = _ensure_polygon_node(
+		"body_shadow_poly",
+		-1,
+		Color(0.0, 0.0, 0.0, 0.26),
+		self.Polygon.polygon
+	)
+	self.BodyShadowPoly.position = Vector2(1.6, 2.8)
+	self.BodyShadowPoly.scale = Vector2.ONE * 1.04
+
+	self.BodyRimPoly = _ensure_polygon_node(
+		"body_rim_poly",
+		1,
+		_lift_color(BaseColor, 0.36, 0.20),
+		self.Polygon.polygon
+	)
+	self.BodyRimPoly.scale = Vector2.ONE * 0.84
+
+	self.BodyReflectionPoly = _ensure_polygon_node(
+		"body_reflection_poly",
+		1,
+		_lift_color(BaseColor, 0.70, 0.18),
+		self.Polygon.polygon
+	)
+	self.BodyReflectionPoly.position = Vector2(-3.2, -4.4)
+	self.BodyReflectionPoly.scale = Vector2.ONE * 0.56
+
+func _build_face_display_polish() -> void:
+	var face_points := _get_face_display_points()
+	self.FaceBlur = _ensure_polygon_node(
+		"face_blur",
+		4,
+		_lift_color(BaseColor, 0.44, 0.18),
+		face_points
+	)
+	self.FaceBlur.material = _create_scanline_material(0.42, 18.0, 0.12, 0.86, 0.12, 0.03, 0.34, 0.08, 26.0, 0.14)
+	self.FaceBlur.scale = Vector2.ONE * 1.08
+
+	self.FaceReflection = _ensure_polygon_node(
+		"face_reflection",
+		5,
+		Color(0.90, 0.96, 1.0, 0.18),
+		face_points
+	)
+	self.FaceReflection.position = Vector2(-2.4, -1.8)
+	self.FaceReflection.scale = Vector2.ONE * 0.46
+
+	self.FaceScanlines = _ensure_effect_container("face_scanlines", 5)
+	self.FaceSweepLines = _ensure_effect_container("face_sweep_lines", 5)
+	_build_face_scanlines(face_points)
+	_build_face_sweep_lines(face_points)
+
+func _update_face_display_polish(pulse: float) -> void:
+	if self.FaceBlur != null:
+		self.FaceBlur.color = _lift_color(BaseColor, 0.40, 0.14 + pulse * 0.05)
+		self.FaceBlur.scale = Vector2.ONE * (1.06 + pulse * 0.04)
+	if self.FaceReflection != null:
+		self.FaceReflection.modulate = Color(0.96, 0.98, 1.0, 0.16 + pulse * 0.06)
+		self.FaceReflection.scale = Vector2.ONE * (0.44 + pulse * 0.03)
+	for stripe in self.FaceScanlines.get_children():
+		var stripe_poly := stripe as Polygon2D
+		if stripe_poly == null:
+			continue
+		stripe_poly.modulate = Color(0.56, 0.60, 0.70, 0.10 + pulse * 0.04)
+	_update_face_sweep_lines(pulse)
+
+func _build_face_scanlines(face_points: PackedVector2Array) -> void:
+	for child in self.FaceScanlines.get_children():
+		child.queue_free()
+	var bounds := _get_polygon_bounds(face_points)
+	var stripe_count := 5
+	for stripe_index in range(stripe_count):
+		var stripe := Polygon2D.new()
+		var stripe_y := bounds.position.y + 1.0 + float(stripe_index) * ((bounds.size.y - 2.0) / float(stripe_count))
+		stripe.color = Color(0.54, 0.58, 0.66, 0.12 if stripe_index % 2 == 0 else 0.08)
+		stripe.polygon = PackedVector2Array([
+			Vector2(bounds.position.x + 0.8, stripe_y),
+			Vector2(bounds.position.x + bounds.size.x - 0.8, stripe_y),
+			Vector2(bounds.position.x + bounds.size.x - 0.8, stripe_y + 0.26),
+			Vector2(bounds.position.x + 0.8, stripe_y + 0.26),
+		])
+		self.FaceScanlines.add_child(stripe)
+
+func _build_face_sweep_lines(face_points: PackedVector2Array) -> void:
+	for child in self.FaceSweepLines.get_children():
+		child.queue_free()
+	_face_sweep_polys.clear()
+	var bounds := _get_polygon_bounds(face_points)
+	for _i in range(2):
+		var sweep := Polygon2D.new()
+		sweep.color = Color(0.74, 0.86, 1.0, 0.0)
+		sweep.polygon = PackedVector2Array([
+			Vector2(bounds.position.x + 0.6, -0.22),
+			Vector2(bounds.position.x + bounds.size.x - 0.6, -0.22),
+			Vector2(bounds.position.x + bounds.size.x - 0.6, 0.22),
+			Vector2(bounds.position.x + 0.6, 0.22),
+		])
+		self.FaceSweepLines.add_child(sweep)
+		_face_sweep_polys.append(sweep)
+
+func _update_face_sweep_lines(pulse: float) -> void:
+	if _face_sweep_polys.is_empty():
+		return
+	var face_points := _get_face_display_points()
+	var bounds := _get_polygon_bounds(face_points)
+	var t := float(Time.get_ticks_msec()) * 0.00072
+	for sweep_index in range(_face_sweep_polys.size()):
+		var sweep := _face_sweep_polys[sweep_index]
+		var phase := fposmod(t + float(sweep_index) * 0.43, 1.0)
+		sweep.position = Vector2(0.0, lerpf(bounds.position.y + 0.8, bounds.position.y + bounds.size.y - 0.8, phase))
+		sweep.color = Color(0.72, 0.86, 1.0, sin(phase * PI) * (0.10 + pulse * 0.04))
+
+func _get_face_display_points() -> PackedVector2Array:
+	if has_node("face_fill"):
+		return ($face_fill as Polygon2D).polygon
+	if has_node("face_glass"):
+		return ($face_glass as Polygon2D).polygon
+	return PackedVector2Array([
+		Vector2(-8.0, -5.0), Vector2(8.0, -5.0), Vector2(8.0, 5.0), Vector2(-8.0, 5.0),
+	])
+
+func _get_polygon_bounds(points: PackedVector2Array) -> Rect2:
+	var min_x := INF
+	var max_x := -INF
+	var min_y := INF
+	var max_y := -INF
+	for point in points:
+		min_x = minf(min_x, point.x)
+		max_x = maxf(max_x, point.x)
+		min_y = minf(min_y, point.y)
+		max_y = maxf(max_y, point.y)
+	return Rect2(Vector2(min_x, min_y), Vector2(max_x - min_x, max_y - min_y))
+
+func _create_scanline_material(
+	scan_speed: float,
+	line_density: float,
+	line_brightness: float,
+	pulse_speed: float,
+	subpixel_strength: float,
+	chroma_strength: float,
+	blur_strength: float,
+	shadow_strength: float,
+	stripe_density: float,
+	stripe_strength: float
+) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = SCANLINE_SHADER
+	material.set_shader_parameter("scan_speed", scan_speed)
+	material.set_shader_parameter("line_density", line_density)
+	material.set_shader_parameter("line_brightness", line_brightness)
+	material.set_shader_parameter("pulse_speed", pulse_speed)
+	material.set_shader_parameter("subpixel_strength", subpixel_strength)
+	material.set_shader_parameter("chroma_strength", chroma_strength)
+	material.set_shader_parameter("blur_strength", blur_strength)
+	material.set_shader_parameter("shadow_strength", shadow_strength)
+	material.set_shader_parameter("stripe_density", stripe_density)
+	material.set_shader_parameter("stripe_strength", stripe_strength)
+	return material
+
+func _ensure_polygon_node(name: String, z_index_value: int, color_value: Color, points: PackedVector2Array) -> Polygon2D:
+	var polygon_node := get_node_or_null(name) as Polygon2D
+	if polygon_node == null:
+		polygon_node = Polygon2D.new()
+		polygon_node.name = name
+		add_child(polygon_node)
+	polygon_node.z_index = z_index_value
+	polygon_node.color = color_value
+	polygon_node.polygon = points
+	return polygon_node
+
+func _ensure_effect_container(name: String, z_index_value: int) -> Node2D:
+	var node := get_node_or_null(name) as Node2D
+	if node == null:
+		node = Node2D.new()
+		node.name = name
+		add_child(node)
+	node.z_index = z_index_value
+	return node
+
+func _lift_color(color_value: Color, amount: float, alpha_value: float) -> Color:
+	return Color(
+		lerpf(color_value.r, 1.0, amount),
+		lerpf(color_value.g, 1.0, amount),
+		lerpf(color_value.b, 1.0, amount),
+		alpha_value
+	)
 
 func _get_player() -> Node2D:
 	var players := get_tree().get_nodes_in_group("player")
@@ -171,6 +390,10 @@ func _handle_on_hit(by: Area2D) -> void:
 func _do_hit_flash() -> void:
 	self.Polygon.color = HIT_COLOR
 	self.ShieldPoly.color = Color(1.0, 1.0, 1.0, 0.18)
+	if self.BodyRimPoly != null:
+		self.BodyRimPoly.color = Color(1.0, 1.0, 1.0, 0.42)
+	if self.FaceBlur != null:
+		self.FaceBlur.color = Color(1.0, 1.0, 1.0, 0.24)
 	await get_tree().create_timer(0.1).timeout
 	if is_instance_valid(self):
 		self.Polygon.color = BaseColor
@@ -213,6 +436,7 @@ func _play_death_animation() -> void:
 
 	self.Polygon.material = _death_material
 	self.Polygon.color = pale
+	_apply_death_material_to_polish_nodes()
 
 	# Pale and re-material the face so the whole body dissolves together.
 	for face_name in FACE_NODE_NAMES:
@@ -230,6 +454,7 @@ func _play_death_animation() -> void:
 
 	# Spawn a death particle burst sized to the enemy's color.
 	_spawn_death_burst(pale)
+	_spawn_death_echoes(pale)
 
 	var tween := create_tween()
 	tween.set_parallel(true)
@@ -247,6 +472,41 @@ func _play_death_animation() -> void:
 func _update_death_dissolve(value: float) -> void:
 	if _death_material != null:
 		_death_material.set_shader_parameter("dissolve_progress", value)
+
+func _apply_death_material_to_polish_nodes() -> void:
+	for node_name in DISPLAY_POLISH_NODE_NAMES:
+		var polygon_node := get_node_or_null(node_name) as Polygon2D
+		if polygon_node == null:
+			continue
+		polygon_node.material = _death_material
+
+func _spawn_death_echoes(pale: Color) -> void:
+	var death_echo_back := _ensure_polygon_node(
+		"death_echo_back",
+		0,
+		Color(pale.r, pale.g, pale.b, 0.28),
+		self.Polygon.polygon
+	)
+	death_echo_back.position = Vector2.ZERO
+	death_echo_back.scale = Vector2.ONE * 0.98
+	death_echo_back.material = _death_material
+
+	var death_echo_front := _ensure_polygon_node(
+		"death_echo_front",
+		2,
+		Color(1.0, 1.0, 1.0, 0.22),
+		self.Polygon.polygon
+	)
+	death_echo_front.position = Vector2.ZERO
+	death_echo_front.scale = Vector2.ONE * 0.84
+	death_echo_front.material = _death_material
+
+	var echo_tween := create_tween()
+	echo_tween.set_parallel(true)
+	echo_tween.tween_property(death_echo_back, "scale", Vector2.ONE * 1.42, DEATH_DURATION * 0.78)
+	echo_tween.tween_property(death_echo_back, "modulate:a", 0.0, DEATH_DURATION * 0.72)
+	echo_tween.tween_property(death_echo_front, "scale", Vector2.ONE * 1.18, DEATH_DURATION * 0.46)
+	echo_tween.tween_property(death_echo_front, "modulate:a", 0.0, DEATH_DURATION * 0.38)
 
 func _get_pale_color(c: Color) -> Color:
 	# Desaturate toward gray, then lighten slightly — simulates life draining.

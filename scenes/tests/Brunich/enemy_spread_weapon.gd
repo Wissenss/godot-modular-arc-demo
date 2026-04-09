@@ -6,6 +6,7 @@ const MUZZLE_OFFSET := 30.0
 const PROJECTILE_SPEED := 420.0
 const PELLET_COUNT := 5
 const SPREAD_TOTAL := 0.70  # total arc in radians (~40 deg)
+const PROJECTILE_SCENE := preload("res://scenes/tests/Brunich/enemy_spread_projectile.tscn")
 
 var Owner: CharacterBody2D
 var ShootInterval := 1.05
@@ -16,7 +17,7 @@ var _projectile_scene: PackedScene
 
 func _ready() -> void:
 	randomize()
-	_projectile_scene = preload("res://scenes/tests/Brunich/enemy_spread_projectile.tscn")
+	_projectile_scene = PROJECTILE_SCENE
 
 func _process(delta: float) -> void:
 	if Owner == null:
@@ -71,6 +72,10 @@ func _shoot(direction: Vector2) -> void:
 func get_attack_profile_for_player() -> Dictionary:
 	return {
 		"id": "enemy_spread",
+		"fire_mode": "spread",
+		"pellet_count": PELLET_COUNT,
+		"spread_total": SPREAD_TOTAL,
+		"projectile_scene": PROJECTILE_SCENE,
 		"muzzle_offset": MUZZLE_OFFSET,
 		"projectile_speed": 400.0,
 		"shoot_cooldown": 0.16,

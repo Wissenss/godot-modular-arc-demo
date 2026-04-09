@@ -29,6 +29,7 @@ const WEAPON_SWAP_HEAL_RATIO := 0.05
 const WEAPON_SWAP_SPEED_BONUS := 93.5
 const WEAPON_SWAP_BUFF_DURATION := 10.0
 const WEAPON_SWAP_COOLDOWN_MULTIPLIER := 0.86
+const WEAPON_SWAP_FACE_DURATION := 6.0
 const HACK_POPUP_DURATION := 1.1
 const HEAL_FLASH_DURATION := 0.46
 const SCREEN_BASE_SCALE := 0.747
@@ -640,7 +641,7 @@ func try_steal_attack() -> bool:
 	_weapon_swap_buff_timer = WEAPON_SWAP_BUFF_DURATION
 	self.HealthComp.set_health(self.HealthComp.get_health() + _get_weapon_swap_heal_amount())
 	_trigger_weapon_swap_feedback()
-	set_face_expression("scan", 0.72)
+	set_face_expression("scan", WEAPON_SWAP_FACE_DURATION)
 	_show_hack_popup("stealing.bind(enemy.attack,slot_a)")
 	return true
 

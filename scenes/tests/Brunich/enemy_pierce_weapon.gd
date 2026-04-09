@@ -4,6 +4,7 @@ class_name EnemyPierceWeapon extends Node2D
 
 const MUZZLE_OFFSET := 42.0
 const PROJECTILE_SPEED := 460.0
+const PROJECTILE_SCENE := preload("res://scenes/tests/Brunich/enemy_pierce_projectile.tscn")
 
 var Owner: CharacterBody2D
 var ShootInterval := 2.85
@@ -14,7 +15,7 @@ var _projectile_scene: PackedScene
 
 func _ready() -> void:
 	randomize()
-	_projectile_scene = preload("res://scenes/tests/Brunich/enemy_pierce_projectile.tscn")
+	_projectile_scene = PROJECTILE_SCENE
 
 func _process(delta: float) -> void:
 	if Owner == null:
@@ -64,6 +65,8 @@ func _shoot(direction: Vector2) -> void:
 func get_attack_profile_for_player() -> Dictionary:
 	return {
 		"id": "enemy_pierce",
+		"fire_mode": "single",
+		"projectile_scene": PROJECTILE_SCENE,
 		"muzzle_offset": MUZZLE_OFFSET,
 		"projectile_speed": 435.0,
 		"shoot_cooldown": 0.28,
