@@ -4,7 +4,7 @@ class_name ConstantVelocityComponent extends Node
 
 var Owner : Node2D
 var Direction := Vector2(0, 0)
-var Speed := 10
+var Speed := 10.0
 
 func _ready() -> void:
 	pass

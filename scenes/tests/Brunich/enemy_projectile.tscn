@@ -11,23 +11,33 @@ point_count = 3
 [node name="enemy_projectile" type="Node2D" unique_id=100000001]
 script = ExtResource("1_eproj")
 
-[node name="Polygon2D" type="Polygon2D" parent="." unique_id=100000002]
-scale = Vector2(4, 4)
+[node name="outer_ring" type="Polygon2D" parent="." unique_id=100000002]
+scale = Vector2(6.2, 6.2)
 color = Color(0.0, 0.85, 1.0, 0.9)
-polygon = PackedVector2Array(0.5, 0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5)
+polygon = PackedVector2Array(1, 0, 0.7, 0.7, 0, 1, -0.7, 0.7, -1, 0, -0.7, -0.7, 0, -1, 0.7, -0.7)
+
+[node name="core_polygon" type="Polygon2D" parent="." unique_id=100000007]
+scale = Vector2(3.8, 3.8)
+color = Color(0.0, 0.18, 0.38, 0.95)
+polygon = PackedVector2Array(0.8, 0, 0.25, 0.78, -0.65, 0.48, -0.65, -0.48, 0.25, -0.78)
+
+[node name="code_polygon" type="Polygon2D" parent="." unique_id=100000008]
+scale = Vector2(2.8, 2.8)
+color = Color(0.92, 0.99, 1.0, 0.95)
+polygon = PackedVector2Array(-1.1, -0.1, 0.9, -0.1, 0.9, 0.2, -1.1, 0.2, -0.2, -0.8, 0.1, -0.8, 0.1, 0.9, -0.2, 0.9)
 
 [node name="hurtbox_comp" parent="." unique_id=100000003 instance=ExtResource("2_hrbox")]
 
 [node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="hurtbox_comp" unique_id=100000004]
-polygon = PackedVector2Array(1, 0, 0.5, 0.866, -0.5, 0.866, -1, 0, -0.5, -0.866, 0.5, -0.866)
+polygon = PackedVector2Array(1.4, 0, 1.0, 1.0, 0, 1.4, -1.0, 1.0, -1.4, 0, -1.0, -1.0, 0, -1.4, 1.0, -1.0)
 
 [node name="constant_velocity_comp" parent="." unique_id=100000005 instance=ExtResource("3_cvel")]
 
-[node name="CPUParticles2D" type="CPUParticles2D" parent="." unique_id=100000006]
+[node name="trail_particles" type="CPUParticles2D" parent="." unique_id=100000006]
 amount = 10
 direction = Vector2(0, 0)
 gravity = Vector2(0, 0)
-scale_amount_min = 3.0
-scale_amount_max = 5.0
+scale_amount_min = 6.0
+scale_amount_max = 9.0
 scale_amount_curve = SubResource("Curve_eproj")
 color = Color(0.0, 0.85, 1.0, 0.6)

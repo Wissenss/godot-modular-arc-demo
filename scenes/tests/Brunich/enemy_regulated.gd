@@ -14,6 +14,7 @@ const ARENA_MAX := Vector2(1226, 610)
 
 const BASE_COLOR := Color(0.16, 0.82, 1.0, 1.0)
 const HIT_COLOR := Color(1.0, 1.0, 1.0, 1.0)
+const ATTACK_PICKUP_SCRIPT := preload("res://scenes/tests/Brunich/enemy_attack_pickup.gd")
 
 var HitboxComp: HitboxComponent
 var HealthComp: HealthComponent
@@ -147,4 +148,23 @@ func _do_hit_flash() -> void:
 
 func _handle_on_died() -> void:
 	_alive = false
+	var players := get_tree().get_nodes_in_group("player")
+	if not players.is_empty():
+		if players[0].has_method("notify_enemy_eliminated"):
+			players[0].notify_enemy_eliminated()
+		elif players[0].has_method("set_face_expression"):
+			players[0].set_face_expression("happy", 4.0)
+	self.HitboxComp.set_deferred("monitorable", false)
+	self.HitboxComp.set_deferred("monitoring", false)
+	if has_node("hurtbox_comp"):
+		var hurtbox := $hurtbox_comp as Area2D
+		hurtbox.set_deferred("monitorable", false)
+		hurtbox.set_deferred("monitoring", false)
+	self.BodyParticles.emitting = false
+	self.OrbitParticles.emitting = false
+	if ATTACK_PICKUP_SCRIPT != null:
+		var pickup := ATTACK_PICKUP_SCRIPT.new()
+		pickup.configure(global_position, self.Weapon.get_attack_profile_for_player())
+		var parent: Node = get_parent() if get_parent() != null else get_tree().current_scene
+		parent.add_child(pickup)
 	queue_free()

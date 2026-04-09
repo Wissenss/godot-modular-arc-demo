@@ -31,6 +31,54 @@ visible = false
 material = SubResource("ShaderMaterial_glitch")
 polygon = PackedVector2Array(-42, -42, 42, -42, 42, 42, -42, 42)
 
+[node name="screen_glow" type="Polygon2D" parent="." unique_id=556600101]
+z_index = 1
+color = Color(0.34, 0.56, 1.0, 0.1)
+polygon = PackedVector2Array(-17, -13, -13, -17, 13, -17, 17, -13, 17, 13, 13, 17, -13, 17, -17, 13)
+
+[node name="screen_shell" type="Polygon2D" parent="." unique_id=556600105]
+z_index = 2
+color = Color(0.08, 0.08, 0.11, 0.98)
+polygon = PackedVector2Array(-15, -11, -11, -15, 11, -15, 15, -11, 15, 11, 11, 15, -11, 15, -15, 11)
+
+[node name="screen_frame" type="Polygon2D" parent="." unique_id=556600102]
+z_index = 3
+color = Color(0.09, 0.10, 0.16, 0.96)
+polygon = PackedVector2Array(-13, -9.6, -9.6, -13, 9.6, -13, 13, -9.6, 13, 9.6, 9.6, 13, -9.6, 13, -13, 9.6)
+
+[node name="screen_trim" type="Polygon2D" parent="." unique_id=556600106]
+z_index = 4
+color = Color(0.2, 0.34, 0.56, 0.9)
+polygon = PackedVector2Array(-11.4, -8.6, -8.6, -11.4, 8.6, -11.4, 11.4, -8.6, 11.4, 8.6, 8.6, 11.4, -8.6, 11.4, -11.4, 8.6)
+
+[node name="screen_fill" type="Polygon2D" parent="." unique_id=556600103]
+z_index = 5
+color = Color(0.10, 0.11, 0.12, 0.98)
+polygon = PackedVector2Array(-9.4, -6.9, -6.9, -9.4, 6.9, -9.4, 9.4, -6.9, 9.4, 6.9, 6.9, 9.4, -6.9, 9.4, -9.4, 6.9)
+
+[node name="screen_glass" type="Polygon2D" parent="." unique_id=556600107]
+z_index = 6
+color = Color(1, 1, 1, 0.12)
+polygon = PackedVector2Array(-6.4, -7.0, -1.2, -7.0, -3.9, -4.5, -6.8, -4.5, -6.8, -1.4, -5.5, -0.2, -4.8, -0.6, -4.8, -3.6, -6.4, -5.3)
+
+[node name="screen_glass_secondary" type="Polygon2D" parent="." unique_id=556600108]
+z_index = 6
+color = Color(1, 1, 1, 0.09)
+polygon = PackedVector2Array(-5.2, 0.2, -3.6, 0.2, -2.7, 1.1, -2.7, 2.9, -3.9, 4.0, -5.2, 4.0)
+
+[node name="screen_reflection_right" type="Polygon2D" parent="." unique_id=556600110]
+z_index = 6
+color = Color(0.78, 0.84, 0.96, 0.08)
+polygon = PackedVector2Array(2.6, -6.2, 6.7, -3.8, 6.7, 4.2, 4.9, 6.8, 2.8, 4.6, 3.8, 2.4, 3.8, -2.0, 2.6, -4.6)
+
+[node name="screen_shadow" type="Polygon2D" parent="." unique_id=556600109]
+z_index = 6
+color = Color(0.04, 0.05, 0.08, 0.28)
+polygon = PackedVector2Array(1.7, 1.7, 6.5, 1.7, 7.4, 2.6, 7.4, 6.4, 5.0, 8.7, 2.3, 8.7, 2.3, 5.1, 4.8, 2.8)
+
+[node name="face_pixels" type="Node2D" parent="." unique_id=556600104]
+z_index = 7
+
 [node name="controller_comp" parent="." unique_id=1619026556 instance=ExtResource("2_ctrl")]
 
 [node name="constant_velocity_comp" parent="." unique_id=169898443 instance=ExtResource("3_vel")]
@@ -89,7 +137,7 @@ polygon = PackedVector2Array(-22, -22, 22, -22, 22, 22, -22, 22)
 [node name="health_comp" parent="." unique_id=445566778 instance=ExtResource("6_hlth")]
 
 [node name="camera" type="Camera2D" parent="." unique_id=556677889]
-zoom = Vector2(2, 2)
+zoom = Vector2(1.54, 1.54)
 position_smoothing_enabled = true
 position_smoothing_speed = 5.0
 limit_left = 0

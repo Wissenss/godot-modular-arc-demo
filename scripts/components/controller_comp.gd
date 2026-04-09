@@ -35,3 +35,6 @@ func _is_attack_pressed() -> bool:
 
 func _is_dash_pressed() -> bool:
 	return Input.is_action_just_pressed("dash")
+
+func _is_steal_pressed() -> bool:
+	return Input.is_action_just_pressed("steal")

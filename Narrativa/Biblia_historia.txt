@@ -1,1 +1,1 @@
-Historia de Juego>
+Ver `IA_ROGUE_BIBLIA.md` para la version ordenada y actualizada de la narrativa, tono visual y lineamientos del juego.

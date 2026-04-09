@@ -1,13 +1,13 @@
 class_name EnemyWeapon extends Node2D
 
 const MUZZLE_OFFSET := 34.0
-const PROJECTILE_SPEED := 300.0
+const PROJECTILE_SPEED := 292.0
 
 var Owner: CharacterBody2D
-var ShootInterval := 0.55
-var BurstSize := 3
-var BurstSpacing := 0.11
-var SpreadAngle := 0.12
+var ShootInterval := 0.62
+var BurstSize := 2
+var BurstSpacing := 0.16
+var SpreadAngle := 0.14
 var PredictionLead := 0.22
 
 var _shoot_timer := 0.0
@@ -72,6 +72,8 @@ func _shoot(direction: Vector2) -> void:
 	projectile.global_position = Owner.global_position + shoot_dir * MUZZLE_OFFSET
 	projectile.rotation = shoot_dir.angle()
 	projectile.Owner = Owner
+	if projectile.has_method("configure_projectile"):
+		projectile.configure_projectile(_get_projectile_profile())
 
 	var parent: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
 	parent.add_child(projectile)
@@ -79,3 +81,35 @@ func _shoot(direction: Vector2) -> void:
 	projectile.HurtboxComp.Owner = Owner
 	projectile.ConstantVelocityComp.Speed = PROJECTILE_SPEED
 	projectile.ConstantVelocityComp.Direction = shoot_dir
+
+func get_attack_profile_for_player() -> Dictionary:
+	return {
+		"id": "enemy_orb",
+		"muzzle_offset": MUZZLE_OFFSET,
+		"projectile_speed": 260.0,
+		"shoot_cooldown": 0.22,
+		"projectile_profile": {
+			"damage": 14,
+			"life_time": 2.0,
+			"visual_scale": 1.28,
+			"outer_color": Color(0.18, 0.94, 1.0, 0.94),
+			"core_color": Color(0.04, 0.16, 0.32, 1.0),
+			"code_color": Color(0.92, 0.98, 1.0, 0.92),
+			"trail_color": Color(0.40, 0.92, 1.0, 0.55),
+			"trail_scale_min": 6.0,
+			"trail_scale_max": 9.0,
+		},
+	}
+
+func _get_projectile_profile() -> Dictionary:
+	return {
+		"damage": 22,
+		"life_time": 2.5,
+		"visual_scale": 1.28,
+		"outer_color": Color(0.18, 0.94, 1.0, 0.94),
+		"core_color": Color(0.04, 0.16, 0.32, 1.0),
+		"code_color": Color(0.92, 0.99, 1.0, 0.95),
+		"trail_color": Color(0.06, 0.88, 1.0, 0.6),
+		"trail_scale_min": 6.0,
+		"trail_scale_max": 9.0,
+	}
