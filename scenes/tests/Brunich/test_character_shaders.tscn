@@ -137,7 +137,7 @@ polygon = PackedVector2Array(-22, -22, 22, -22, 22, 22, -22, 22)
 [node name="health_comp" parent="." unique_id=445566778 instance=ExtResource("6_hlth")]
 
 [node name="camera" type="Camera2D" parent="." unique_id=556677889]
-zoom = Vector2(1.54, 1.54)
+zoom = Vector2(1.5, 1.5)
 position_smoothing_enabled = true
 position_smoothing_speed = 5.0
 limit_left = 0

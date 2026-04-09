@@ -55,9 +55,9 @@ func _run() -> void:
 	_expect(mc.has_node("face_pixels"), "el MC debe tener una cara pixel dentro de la pantalla")
 	_expect((mc.get_node("screen_fill") as Polygon2D).polygon.size() > 4, "la pantalla del MC debe leerse mas como un CRT con esquinas trabajadas")
 	_expect((mc.get_node("screen_fill") as Polygon2D).material != null, "la pantalla del MC debe usar un material para leerse mas como display")
-	_expect((mc.get_node("screen_shell") as Polygon2D).scale.x < 0.82, "el cuadrado del MC debe bajar un poco de tamano respecto a la iteracion anterior")
+	_expect((mc.get_node("screen_shell") as Polygon2D).scale.x < 0.75, "el cuadrado del MC debe crecer un poco respecto a la iteracion anterior")
 	_expect((mc.get_node("screen_fill") as Polygon2D).scale.x < 0.95, "el display del MC debe sentirse mas pequeno que la version anterior")
-	_expect((mc.get_node("screen_shell") as Polygon2D).scale.x >= 0.74, "el cuadrado del MC debe seguir viendose claro tras reducirse un poco")
+	_expect((mc.get_node("screen_shell") as Polygon2D).scale.x >= 0.68, "el cuadrado del MC debe seguir viendose claro tras crecer un poco")
 	_expect(mc.has_method("get_available_face_expressions"), "el MC debe exponer el catalogo de caritas disponibles")
 	_expect(mc.has_method("get_current_face_expression"), "el MC debe exponer la carita actual para debug")
 	var screen_shader_text := FileAccess.get_file_as_string("res://scenes/tests/Brunich/scanline_shader.gdshader")
@@ -75,12 +75,12 @@ func _run() -> void:
 	_expect(world.has_method("debug_try_context_action"), "Brunich debe exponer una interaccion de contexto para pruebas")
 	_expect(mc.Weapon.SHOOT_COOLDOWN <= 0.1, "el arma del MC debe disparar muy rapido al mantener el click")
 	_expect(is_equal_approx(mc.ConstantVelocityComp.Speed, 374.0), "la velocidad base del MC debe subir diez por ciento respecto a la iteracion anterior")
-	_expect(camera.zoom.x <= 1.56 and camera.zoom.x >= 1.50, "la camara debe quedar aproximadamente 30 por ciento mas alejada")
-	_expect(mc.BodyParticles.amount >= 250, "los cuadritos morados del MC deben aumentar de nuevo su generacion")
-	_expect(mc.TrailParticles.amount >= 190, "la estela del MC tambien debe aumentar en densidad")
+	_expect(camera.zoom.x <= 1.52 and camera.zoom.x >= 1.48, "la camara debe quedar claramente mas alejada que la iteracion anterior")
+	_expect(mc.BodyParticles.amount >= 205 and mc.BodyParticles.amount <= 214, "los cuadritos morados del MC deben reducirse un poco en cantidad")
+	_expect(mc.TrailParticles.amount >= 158 and mc.TrailParticles.amount <= 166, "la estela morada tambien debe reducirse un poco en cantidad")
 	_expect(mc.BodyParticles.scale_amount_max <= 12.5, "los cuadritos morados del MC deben verse claramente mas pequenos")
 	_expect(mc.BodyParticlesBright.scale_amount_max <= 6.5, "las particulas brillantes del MC deben reducir su tamano")
-	_expect(mc.BodyParticles.local_coords, "los cuadritos morados del cuerpo deben emitirse en coordenadas locales para rodear al MC")
+	_expect(not mc.BodyParticles.local_coords, "los cuadritos morados del cuerpo no deben quedar pegados al MC al moverse")
 	_expect(FileAccess.get_file_as_string("res://scripts/components/controller_comp.gd").find("Input.is_action_pressed(\"attack\")") != -1, "el ataque debe salir al mantener presionado el click izquierdo")
 	_expect(load(PLAYER_PROJECTILE_PATH).instantiate().has_node("outline_polygon"), "el proyectil del MC debe tener un perimetro remarcado para leerse mejor")
 	_expect(mc.get_current_face_expression() == "angry", "el MC debe mantener angry como expresion base")
@@ -192,19 +192,23 @@ func _assert_player_face_stays_stable_while_moving(mc: Node2D) -> void:
 	if not mc.has_node("face_pixels"):
 		return
 
+	mc.ConstantVelocityComp.Direction = Vector2.RIGHT
 	mc._update_screen_visual(0.016, true, false)
 	mc._update_visual_state(0.016, false)
 	var face_pixels := mc.get_node("face_pixels") as Node2D
 	_expect(face_pixels.position == Vector2.ZERO, "al moverse, la cara del MC debe mantenerse estable y no deformarse")
 	_expect(mc.BodyParticles.emitting, "al moverse tambien deben seguir generandose cuadritos alrededor del MC")
+	_expect(mc.TrailParticles.emitting, "al moverse la estela debe seguir activa para conservar la fluidez tipo Wissens")
+	_expect(mc.TrailParticles.direction.length() > 0.1, "al moverse la estela debe orientarse segun la direccion del movimiento")
+	_expect(mc.BodyParticles.gravity.length() > 20.0, "los cuadritos del cuerpo deben volver a tener arrastre y gravedad para no verse rigidos")
 
 func _assert_face_pixels_are_smaller(mc: Node2D) -> void:
 	var face_pixels := mc.get_node("face_pixels") as Node2D
 	if face_pixels.get_child_count() == 0:
 		return
 	var first_pixel := face_pixels.get_child(0) as Polygon2D
-	_expect(first_pixel.scale.x >= 0.68 and first_pixel.scale.x <= 0.9, "los pixeles de las expresiones deben ser mas pequenos para permitir formas mas detalladas")
-	_expect(face_pixels.scale.x >= 0.90 and face_pixels.scale.x <= 0.98, "la cara completa del MC debe crecer un poco para volver a notarse mejor")
+	_expect(first_pixel.scale.x >= 0.66 and first_pixel.scale.x <= 0.74, "los pixeles de las expresiones deben crecer un poco para leerse mejor")
+	_expect(face_pixels.scale.x >= 0.82 and face_pixels.scale.x <= 0.85, "la cara completa del MC debe crecer un poco junto con el display")
 	_expect(first_pixel.color.r >= 0.70 and absf(first_pixel.color.r - first_pixel.color.g) <= 0.08 and absf(first_pixel.color.g - first_pixel.color.b) <= 0.10, "las expresiones del MC deben pasar a gris claro")
 
 func _assert_room_progression_and_attack_steal(world: Node, mc: Node2D, enemy: CharacterBody2D) -> void:
@@ -245,7 +249,10 @@ func _assert_room_progression_and_attack_steal(world: Node, mc: Node2D, enemy: C
 		_expect(mc.has_node("heal_particles"), "el MC debe mostrar una animacion de curacion al cambiar de arma")
 		_expect((mc.get_node("steal_buff_particles_back") as CPUParticles2D).emitting, "el buff visual del robo debe permanecer activo varios segundos")
 		_expect((mc.get_node("heal_particles") as CPUParticles2D).emitting, "la curacion debe disparar una animacion rapida dedicada")
+		_expect((mc.get_node("steal_buff_particles_back") as CPUParticles2D).color.g > (mc.get_node("steal_buff_particles_back") as CPUParticles2D).color.r, "el buff persistente del cambio de arma debe verse verde")
 		_expect((mc.get_node("heal_particles") as CPUParticles2D).color.g > (mc.get_node("heal_particles") as CPUParticles2D).color.r, "la animacion de cambio de arma debe pasar a un verde de curacion")
+		_expect((mc.get_node("heal_particles") as CPUParticles2D).position.y >= 14.0, "la curacion debe aparecer por debajo del display y no encima de la cara")
+		_expect((mc.get_node("heal_crown_back") as Node2D).position.y >= 6.0, "el aura de curacion debe quedarse debajo del display")
 		mc.Weapon._shoot(Vector2.RIGHT)
 		await _wait_physics_frames(1)
 		var stolen_projectile := _find_projectile_owned_by(world, "enemy_projectile", mc)

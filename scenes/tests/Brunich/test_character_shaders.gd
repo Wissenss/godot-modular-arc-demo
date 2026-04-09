@@ -22,7 +22,7 @@ const SCREEN_GLOW_IDLE := Color(0.34, 0.56, 1.0, 0.10)
 const SCREEN_GLOW_ACTIVE := Color(0.55, 0.24, 0.98, 0.18)
 const PIXEL_IDLE := Color(0.84, 0.86, 0.90, 0.98)
 const PIXEL_ALERT := Color(0.96, 0.97, 1.0, 1.0)
-const FACE_PIXEL_SCALE := 0.76
+const FACE_PIXEL_SCALE := 0.688
 const FACE_PIXEL_POOL_SIZE := 64
 const STEAL_RANGE := 76.0
 const WEAPON_SWAP_HEAL_RATIO := 0.05
@@ -31,9 +31,9 @@ const WEAPON_SWAP_BUFF_DURATION := 10.0
 const WEAPON_SWAP_COOLDOWN_MULTIPLIER := 0.86
 const HACK_POPUP_DURATION := 1.1
 const HEAL_FLASH_DURATION := 0.46
-const SCREEN_BASE_SCALE := 0.765
-const SCREEN_GLOW_BASE_SCALE := 0.82
-const SCREEN_BLUR_BASE_SCALE := 0.88
+const SCREEN_BASE_SCALE := 0.692
+const SCREEN_GLOW_BASE_SCALE := 0.743
+const SCREEN_BLUR_BASE_SCALE := 0.796
 
 var ControllerComp: ControllerComponent
 var ConstantVelocityComp: ConstantVelocityComponent
@@ -64,8 +64,8 @@ var StealBuffParticlesBack: CPUParticles2D
 var StealBuffParticlesFront: CPUParticles2D
 var HealParticles: CPUParticles2D
 var HealSparkParticles: CPUParticles2D
-var HealCrownBack: Polygon2D
-var HealCrownFront: Polygon2D
+var HealCrownBack: Node2D
+var HealCrownFront: Node2D
 var DashCharges := MAX_DASH_CHARGES
 
 var _glitch_timer := 0.0
@@ -118,7 +118,7 @@ func _ready() -> void:
 	self.ScreenShadow = $screen_shadow
 	self.FacePixels = $face_pixels
 	_configure_tv_screen()
-	self.FacePixels.scale = Vector2.ONE * 0.924
+	self.FacePixels.scale = Vector2.ONE * 0.837
 	_build_feedback_particles()
 	_configure_core_particles()
 
@@ -224,19 +224,50 @@ func _update_visual_state(delta: float, is_attacking: bool) -> void:
 	_weapon_swap_buff_timer = maxf(_weapon_swap_buff_timer - delta, 0.0)
 	self.ConstantVelocityComp.Speed = MOVE_SPEED + (WEAPON_SWAP_SPEED_BONUS if _weapon_swap_buff_timer > 0.0 else 0.0)
 	_heal_flash_timer = maxf(_heal_flash_timer - delta, 0.0)
+	var move_vector := self.ConstantVelocityComp.Direction
+	if move_vector == Vector2.ZERO and _dash_timer > 0.0:
+		move_vector = _dash_direction
+	var move_dir := move_vector.normalized() if move_vector != Vector2.ZERO else Vector2.UP
+	var side_dir := move_dir.orthogonal()
+	var flow_time := float(Time.get_ticks_msec()) * 0.0012
+	var sway := sin(flow_time * 6.2) * 0.32
+	var lateral_sway := cos(flow_time * 4.8) * 0.22
+	var drift_dir := (move_dir.rotated(sway) + side_dir * lateral_sway).normalized()
 
 	if is_moving:
-		self.BodyParticles.orbit_velocity_min = -1.3
-		self.BodyParticles.orbit_velocity_max = 1.3
-		self.BodyParticlesDark.orbit_velocity_min = -0.9
-		self.BodyParticlesDark.orbit_velocity_max = 0.9
-		self.BodyParticlesBright.orbit_velocity_min = -1.0
-		self.BodyParticlesBright.orbit_velocity_max = 1.0
+		self.BodyParticles.local_coords = false
+		self.BodyParticlesDark.local_coords = false
+		self.BodyParticlesBright.local_coords = false
+		self.BodyParticles.orbit_velocity_min = -0.18
+		self.BodyParticles.orbit_velocity_max = 0.18
+		self.BodyParticlesDark.orbit_velocity_min = -0.12
+		self.BodyParticlesDark.orbit_velocity_max = 0.12
+		self.BodyParticlesBright.orbit_velocity_min = -0.16
+		self.BodyParticlesBright.orbit_velocity_max = 0.16
 		self.BodyParticles.emitting = true
 		self.BodyParticlesDark.emitting = true
 		self.BodyParticlesBright.emitting = true
 		self.TrailParticles.emitting = true
+		self.BodyParticles.direction = -drift_dir
+		self.BodyParticles.spread = 158.0
+		self.BodyParticles.gravity = -move_dir * 54.0 + side_dir * sin(flow_time * 7.8) * 28.0 + Vector2(0, 26)
+		self.BodyParticles.lifetime = 0.64
+		self.BodyParticlesDark.direction = -drift_dir.rotated(-0.24)
+		self.BodyParticlesDark.spread = 150.0
+		self.BodyParticlesDark.gravity = -move_dir * 34.0 + side_dir * cos(flow_time * 6.0) * 18.0 + Vector2(0, 18)
+		self.BodyParticlesDark.lifetime = 0.60
+		self.BodyParticlesBright.direction = (-drift_dir + side_dir * 0.20).normalized()
+		self.BodyParticlesBright.spread = 146.0
+		self.BodyParticlesBright.gravity = -move_dir * 40.0 + side_dir * sin(flow_time * 8.4 + 1.3) * 22.0 + Vector2(0, 16)
+		self.BodyParticlesBright.lifetime = 0.56
+		self.TrailParticles.direction = -move_dir
+		self.TrailParticles.spread = 88.0
+		self.TrailParticles.gravity = -move_dir * 52.0 + side_dir * cos(flow_time * 5.4) * 12.0 + Vector2(0, 20)
+		self.TrailParticles.lifetime = 0.42
 	else:
+		self.BodyParticles.local_coords = false
+		self.BodyParticlesDark.local_coords = false
+		self.BodyParticlesBright.local_coords = false
 		self.BodyParticles.orbit_velocity_min = -1
 		self.BodyParticles.orbit_velocity_max = 1
 		self.BodyParticlesDark.orbit_velocity_min = -0.7
@@ -247,12 +278,28 @@ func _update_visual_state(delta: float, is_attacking: bool) -> void:
 		self.BodyParticlesDark.emitting = true
 		self.BodyParticlesBright.emitting = true
 		self.TrailParticles.emitting = false
+		self.BodyParticles.direction = Vector2.ZERO
+		self.BodyParticles.spread = 180.0
+		self.BodyParticles.gravity = Vector2(0, 12)
+		self.BodyParticles.lifetime = 0.74
+		self.BodyParticlesDark.direction = Vector2.ZERO
+		self.BodyParticlesDark.spread = 180.0
+		self.BodyParticlesDark.gravity = Vector2(0, 8)
+		self.BodyParticlesDark.lifetime = 0.70
+		self.BodyParticlesBright.direction = Vector2.ZERO
+		self.BodyParticlesBright.spread = 180.0
+		self.BodyParticlesBright.gravity = Vector2(0, 10)
+		self.BodyParticlesBright.lifetime = 0.66
+		self.TrailParticles.direction = Vector2.ZERO
+		self.TrailParticles.spread = 180.0
+		self.TrailParticles.gravity = Vector2.ZERO
+		self.TrailParticles.lifetime = 0.42
 
 	if _dash_timer > 0.0:
-		self.TrailParticles.scale_amount_max = 13.8
+		self.TrailParticles.scale_amount_max = 11.04
 		self.TrailParticles.initial_velocity_max = 180.0
 	else:
-		self.TrailParticles.scale_amount_max = 9.8
+		self.TrailParticles.scale_amount_max = 7.84
 		self.TrailParticles.initial_velocity_max = 100.0
 
 	var pulse := sin(float(Time.get_ticks_msec()) * 0.0062) * 0.5 + 0.5
@@ -266,7 +313,7 @@ func _update_visual_state(delta: float, is_attacking: bool) -> void:
 	self.BodyParticlesDark.scale_amount_max = 4.4 + pulse * 0.6 + flux_boost * 0.4
 	self.BodyParticlesDark.color = Color(0.0, 0.0, 0.0, 0.46 + pulse * 0.08)
 	self.BodyParticles.initial_velocity_max = 154.0 + motion_boost * 26.0 + dash_boost * 30.0 + flux_boost * 18.0
-	self.BodyParticles.scale_amount_max = 10.8 + pulse * 0.9 + dash_boost * 1.2 + flux_boost * 0.9
+	self.BodyParticles.scale_amount_max = 8.64 + pulse * 0.72 + dash_boost * 0.96 + flux_boost * 0.72
 	self.BodyParticles.color = Color(0.10, 0.04, 0.48, 0.38 + pulse * 0.10 + dash_boost * 0.05 + flux_boost * 0.08)
 
 	if _glitch_timer > 0.0:
@@ -726,25 +773,31 @@ func _update_screen_sweep_lines(pulse: float, dash_boost: float, attack_boost: f
 		])
 
 func _configure_core_particles() -> void:
-	self.BodyParticles.amount = 254
+	self.BodyParticles.amount = 211
 	self.BodyParticlesDark.amount = 33
-	self.BodyParticlesBright.amount = 39
-	self.TrailParticles.amount = 195
-	self.BodyParticles.local_coords = true
-	self.BodyParticlesDark.local_coords = true
-	self.BodyParticlesBright.local_coords = true
+	self.BodyParticlesBright.amount = 32
+	self.TrailParticles.amount = 162
+	self.BodyParticles.local_coords = false
+	self.BodyParticlesDark.local_coords = false
+	self.BodyParticlesBright.local_coords = false
 	self.TrailParticles.local_coords = false
+	self.BodyParticles.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	self.BodyParticles.emission_rect_extents = Vector2(12.0, 12.0)
+	self.BodyParticlesDark.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	self.BodyParticlesDark.emission_rect_extents = Vector2(10.0, 10.0)
+	self.BodyParticlesBright.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	self.BodyParticlesBright.emission_rect_extents = Vector2(9.0, 9.0)
 	self.BodyParticles.color = Color(0.10, 0.04, 0.48, 0.46)
 	self.BodyParticlesBright.color = Color(0.48, 0.18, 0.98, 0.66)
 	self.TrailParticles.color = Color(0.16, 0.06, 0.58, 0.60)
 	self.BodyParticles.scale_amount_min = 1.6
-	self.BodyParticles.scale_amount_max = 10.8
+	self.BodyParticles.scale_amount_max = 8.64
 	self.BodyParticlesBright.scale_amount_min = 1.4
 	self.BodyParticlesBright.scale_amount_max = 4.8
 	self.BodyParticlesDark.scale_amount_min = 1.2
 	self.BodyParticlesDark.scale_amount_max = 4.4
 	self.TrailParticles.scale_amount_min = 1.8
-	self.TrailParticles.scale_amount_max = 9.8
+	self.TrailParticles.scale_amount_max = 7.84
 
 func _ensure_polygon_node(name: String, z_index_value: int, color_value: Color, polygon_points: PackedVector2Array) -> Polygon2D:
 	var polygon_node := get_node_or_null(name) as Polygon2D
@@ -756,6 +809,47 @@ func _ensure_polygon_node(name: String, z_index_value: int, color_value: Color, 
 	polygon_node.color = color_value
 	polygon_node.polygon = polygon_points
 	return polygon_node
+
+func _ensure_effect_container(name: String, z_index_value: int) -> Node2D:
+	var node := get_node_or_null(name) as Node2D
+	if node == null:
+		node = Node2D.new()
+		node.name = name
+		add_child(node)
+	node.z_index = z_index_value
+	return node
+
+func _rebuild_cross_layer(
+	layer: Node2D,
+	color_value: Color,
+	positions: Array,
+	arm_length: float,
+	thickness: float
+) -> void:
+	for child in layer.get_children():
+		child.queue_free()
+	for pos in positions:
+		var cross := Polygon2D.new()
+		cross.color = color_value
+		cross.polygon = _build_cross_polygon(arm_length, thickness)
+		cross.position = pos
+		layer.add_child(cross)
+
+func _build_cross_polygon(arm_length: float, thickness: float) -> PackedVector2Array:
+	return PackedVector2Array([
+		Vector2(-thickness, -arm_length),
+		Vector2(thickness, -arm_length),
+		Vector2(thickness, -thickness),
+		Vector2(arm_length, -thickness),
+		Vector2(arm_length, thickness),
+		Vector2(thickness, thickness),
+		Vector2(thickness, arm_length),
+		Vector2(-thickness, arm_length),
+		Vector2(-thickness, thickness),
+		Vector2(-arm_length, thickness),
+		Vector2(-arm_length, -thickness),
+		Vector2(-thickness, -thickness),
+	])
 
 func _create_scanline_material(
 	scan_speed: float,
@@ -788,33 +882,33 @@ func _build_feedback_particles() -> void:
 		"steal_buff_particles_back",
 		0,
 		Vector2(0, 10),
-		28,
+		24,
 		false,
 		true,
-		Color(0.34, 0.18, 0.90, 0.42),
-		Vector2(0, -1),
-		42.0,
-		26.0,
-		58.0,
-		Vector2(0, 24),
-		2.4,
-		4.4,
+		Color(0.36, 0.88, 0.28, 0.46),
+		Vector2(0, -0.28),
+		150.0,
+		16.0,
+		40.0,
+		Vector2(0, 16),
+		1.8,
+		3.6,
 		0.84,
 		0.55
 	)
 	self.StealBuffParticlesFront = _ensure_feedback_particles(
 		"steal_buff_particles_front",
 		8,
-		Vector2(0, 2),
-		18,
+		Vector2(0, 12),
+		16,
 		false,
 		true,
-		Color(0.90, 0.78, 1.0, 0.66),
-		Vector2(0, -1),
-		68.0,
-		34.0,
-		74.0,
-		Vector2(0, 14),
+		Color(0.82, 1.0, 0.66, 0.70),
+		Vector2(0, -0.22),
+		160.0,
+		20.0,
+		48.0,
+		Vector2(0, 18),
 		1.8,
 		3.2,
 		0.72,
@@ -823,36 +917,36 @@ func _build_feedback_particles() -> void:
 	self.HealParticles = _ensure_feedback_particles(
 		"heal_particles",
 		8,
-		Vector2(0, 14),
-		40,
+		Vector2(0, 18),
+		30,
 		true,
 		true,
-		Color(0.54, 0.98, 0.34, 0.92),
-		Vector2(0, -1),
-		68.0,
-		54.0,
-		112.0,
-		Vector2(0, 94),
-		1.4,
-		2.9,
+		Color(0.46, 0.96, 0.28, 0.92),
+		Vector2(0, -0.35),
+		160.0,
+		42.0,
+		84.0,
+		Vector2(0, 52),
+		1.1,
+		2.2,
 		0.56,
 		1.0
 	)
 	self.HealSparkParticles = _ensure_feedback_particles(
 		"heal_spark_particles",
 		9,
-		Vector2(0, -3),
-		24,
+		Vector2(0, 14),
+		18,
 		true,
 		true,
 		Color(0.88, 1.0, 0.70, 0.92),
-		Vector2(0, -1),
-		76.0,
-		110.0,
-		168.0,
-		Vector2(0, 72),
-		1.0,
-		2.2,
+		Vector2(0, -0.25),
+		150.0,
+		58.0,
+		102.0,
+		Vector2(0, 34),
+		0.8,
+		1.6,
 		0.48,
 		1.0
 	)
@@ -904,38 +998,43 @@ func _ensure_feedback_particles(
 func _configure_heal_particles() -> void:
 	if self.HealParticles != null:
 		self.HealParticles.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-		self.HealParticles.emission_rect_extents = Vector2(15.0, 2.0)
+		self.HealParticles.emission_rect_extents = Vector2(18.0, 4.0)
 		self.HealParticles.scale_amount_curve = null
 		self.HealParticles.material = _create_scanline_material(1.9, 20.0, 0.16, 0.96, 0.04, 0.01, 0.10, 0.02, 28.0, 0.14)
 	if self.HealSparkParticles != null:
 		self.HealSparkParticles.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-		self.HealSparkParticles.emission_rect_extents = Vector2(11.0, 2.0)
+		self.HealSparkParticles.emission_rect_extents = Vector2(16.0, 3.0)
 		self.HealSparkParticles.scale_amount_curve = null
 		self.HealSparkParticles.material = _create_scanline_material(2.4, 18.0, 0.18, 1.14, 0.04, 0.01, 0.08, 0.02, 24.0, 0.12)
+	if self.StealBuffParticlesBack != null:
+		self.StealBuffParticlesBack.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		self.StealBuffParticlesBack.emission_rect_extents = Vector2(20.0, 5.0)
+		self.StealBuffParticlesBack.scale_amount_curve = null
+	if self.StealBuffParticlesFront != null:
+		self.StealBuffParticlesFront.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		self.StealBuffParticlesFront.emission_rect_extents = Vector2(18.0, 4.0)
+		self.StealBuffParticlesFront.scale_amount_curve = null
 
 func _build_heal_crowns() -> void:
-	self.HealCrownBack = _ensure_polygon_node(
-		"heal_crown_back",
-		7,
+	self.HealCrownBack = _ensure_effect_container("heal_crown_back", 7)
+	self.HealCrownFront = _ensure_effect_container("heal_crown_front", 8)
+	_rebuild_cross_layer(
+		self.HealCrownBack,
 		Color(0.42, 0.92, 0.28, 0.0),
-		PackedVector2Array([
-			Vector2(-24, 14), Vector2(-21, 7), Vector2(-18, 11), Vector2(-15, 5),
-			Vector2(-12, 11), Vector2(-9, 4), Vector2(-6, 10), Vector2(-3, 3),
-			Vector2(0, 9), Vector2(3, 3), Vector2(6, 10), Vector2(9, 4),
-			Vector2(12, 11), Vector2(15, 5), Vector2(18, 11), Vector2(21, 7),
-			Vector2(24, 14),
-		])
+		[
+			Vector2(-13, 5), Vector2(-7, 10), Vector2(0, 12), Vector2(7, 10), Vector2(13, 5)
+		],
+		3.4,
+		1.1
 	)
-	self.HealCrownFront = _ensure_polygon_node(
-		"heal_crown_front",
-		8,
+	_rebuild_cross_layer(
+		self.HealCrownFront,
 		Color(0.82, 1.0, 0.66, 0.0),
-		PackedVector2Array([
-			Vector2(-18, 12), Vector2(-15, 8), Vector2(-12, 10), Vector2(-9, 5),
-			Vector2(-6, 9), Vector2(-3, 4), Vector2(0, 8), Vector2(3, 4),
-			Vector2(6, 9), Vector2(9, 5), Vector2(12, 10), Vector2(15, 8),
-			Vector2(18, 12),
-		])
+		[
+			Vector2(-9, 7), Vector2(0, 10), Vector2(9, 7)
+		],
+		2.8,
+		0.9
 	)
 	self.HealCrownBack.visible = false
 	self.HealCrownFront.visible = false
@@ -951,15 +1050,16 @@ func _update_heal_feedback() -> void:
 		return
 
 	var progress := 1.0 - (_heal_flash_timer / HEAL_FLASH_DURATION)
-	var lift := lerpf(3.0, -12.0, progress)
-	var spread := 0.92 + progress * 0.56
+	var lift_back := lerpf(14.0, 8.0, progress)
+	var lift_front := lerpf(12.0, 6.0, progress)
+	var spread := 0.94 + progress * 0.18
 	var fade := sin(progress * PI)
-	self.HealCrownBack.position = Vector2(0, lift)
-	self.HealCrownFront.position = Vector2(0, lift - 1.0)
-	self.HealCrownBack.scale = Vector2(spread, 0.86 + progress * 0.42)
-	self.HealCrownFront.scale = Vector2(0.88 + progress * 0.38, 0.80 + progress * 0.34)
-	self.HealCrownBack.color = Color(0.44, 0.94, 0.30, 0.74 * fade)
-	self.HealCrownFront.color = Color(0.86, 1.0, 0.70, 0.88 * fade)
+	self.HealCrownBack.position = Vector2(0, lift_back)
+	self.HealCrownFront.position = Vector2(0, lift_front)
+	self.HealCrownBack.scale = Vector2.ONE * (spread + sin(progress * PI) * 0.04)
+	self.HealCrownFront.scale = Vector2.ONE * (0.92 + progress * 0.16)
+	self.HealCrownBack.modulate = Color(0.44, 0.94, 0.30, 0.76 * fade)
+	self.HealCrownFront.modulate = Color(0.86, 1.0, 0.70, 0.88 * fade)
 
 func _update_flux_feedback(pulse: float, flux_boost: float, dash_boost: float) -> void:
 	var buff_active := _weapon_swap_buff_timer > 0.0
@@ -969,16 +1069,16 @@ func _update_flux_feedback(pulse: float, flux_boost: float, dash_boost: float) -
 			self.StealBuffParticlesBack.emitting = true
 		elif not buff_active and self.StealBuffParticlesBack.emitting:
 			self.StealBuffParticlesBack.emitting = false
-		self.StealBuffParticlesBack.color = Color(0.38, 0.17, 0.94, 0.34 + flux_boost * 0.34 + pulse * 0.08)
-		self.StealBuffParticlesBack.initial_velocity_max = 58.0 + dash_boost * 14.0
+		self.StealBuffParticlesBack.color = Color(0.40, 0.92, 0.30, 0.34 + flux_boost * 0.34 + pulse * 0.08)
+		self.StealBuffParticlesBack.initial_velocity_max = 42.0 + dash_boost * 10.0
 	if self.StealBuffParticlesFront != null:
 		if buff_active and not self.StealBuffParticlesFront.emitting:
 			self.StealBuffParticlesFront.restart()
 			self.StealBuffParticlesFront.emitting = true
 		elif not buff_active and self.StealBuffParticlesFront.emitting:
 			self.StealBuffParticlesFront.emitting = false
-		self.StealBuffParticlesFront.color = Color(0.90, 0.78, 1.0, 0.36 + flux_boost * 0.42 + pulse * 0.10)
-		self.StealBuffParticlesFront.initial_velocity_max = 76.0 + dash_boost * 18.0
+		self.StealBuffParticlesFront.color = Color(0.84, 1.0, 0.70, 0.38 + flux_boost * 0.42 + pulse * 0.10)
+		self.StealBuffParticlesFront.initial_velocity_max = 48.0 + dash_boost * 12.0
 
 func _trigger_weapon_swap_feedback() -> void:
 	_heal_flash_timer = HEAL_FLASH_DURATION
