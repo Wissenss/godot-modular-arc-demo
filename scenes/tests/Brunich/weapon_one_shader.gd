@@ -3,8 +3,12 @@ extends Node2D
 const SHOOT_COOLDOWN := 0.08
 const DEFAULT_ATTACK_ID := "rogue_shard"
 const ENEMY_ATTACK_ID := "enemy_orb"
+const DEFAULT_PROJECTILE_SPEED := 360.0
 const STOLEN_OUTER_COLOR := Color(0.85, 0.77, 1.0, 0.95)
 const STOLEN_TRAIL_COLOR := Color(0.78, 0.67, 1.0, 0.72)
+const STOLEN_ATTACK_TARGET_DPS := 215.0
+const STOLEN_ATTACK_MIN_DAMAGE := 28.0
+const STOLEN_ATTACK_MAX_DAMAGE := 72.0
 
 var ProjectileScene: PackedScene
 var Owner: Node2D
@@ -84,6 +88,7 @@ func equip_enemy_attack(profile: Dictionary = {}) -> void:
 		merged_profile[key] = profile[key]
 	for key in incoming_projectile_profile.keys():
 		merged_projectile_profile[key] = incoming_projectile_profile[key]
+	_rebalance_stolen_attack_profile(merged_profile, merged_projectile_profile)
 	_apply_stolen_attack_overrides(merged_projectile_profile)
 	_apply_attack_profile(merged_profile)
 
@@ -118,3 +123,19 @@ func _apply_stolen_attack_overrides(projectile_profile: Dictionary) -> void:
 	projectile_profile["trail_color"] = STOLEN_TRAIL_COLOR
 	projectile_profile["trail_scale_min"] = maxf(float(projectile_profile.get("trail_scale_min", 6.0)), 6.0)
 	projectile_profile["trail_scale_max"] = maxf(float(projectile_profile.get("trail_scale_max", 8.0)), 8.0)
+
+func _rebalance_stolen_attack_profile(attack_profile: Dictionary, projectile_profile: Dictionary) -> void:
+	if bool(projectile_profile.get("preserve_stolen_damage", false)):
+		return
+
+	var shoot_cooldown := float(attack_profile.get("shoot_cooldown", SHOOT_COOLDOWN))
+	var projectile_speed := float(attack_profile.get("projectile_speed", DEFAULT_PROJECTILE_SPEED))
+	var visual_scale := float(projectile_profile.get("visual_scale", 1.0))
+	var life_time := float(projectile_profile.get("life_time", 1.8))
+	var base_damage := float(projectile_profile.get("damage", STOLEN_ATTACK_MIN_DAMAGE))
+	var size_bonus := 1.0 + maxf(visual_scale - 1.0, 0.0) * 0.35
+	var speed_bonus := 1.0 + maxf(DEFAULT_PROJECTILE_SPEED - projectile_speed, 0.0) / DEFAULT_PROJECTILE_SPEED * 0.45
+	var life_bonus := 1.0 + maxf(life_time - 1.8, 0.0) / 1.8 * 0.18
+	var target_damage := STOLEN_ATTACK_TARGET_DPS * shoot_cooldown * size_bonus * speed_bonus * life_bonus
+	var floor_damage := maxf(base_damage * 1.8, STOLEN_ATTACK_MIN_DAMAGE)
+	projectile_profile["damage"] = int(round(clampf(target_damage, floor_damage, STOLEN_ATTACK_MAX_DAMAGE)))

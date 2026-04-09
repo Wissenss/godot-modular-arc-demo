@@ -31,9 +31,12 @@ const WEAPON_SWAP_BUFF_DURATION := 10.0
 const WEAPON_SWAP_COOLDOWN_MULTIPLIER := 0.86
 const HACK_POPUP_DURATION := 1.1
 const HEAL_FLASH_DURATION := 0.46
-const SCREEN_BASE_SCALE := 0.692
-const SCREEN_GLOW_BASE_SCALE := 0.743
-const SCREEN_BLUR_BASE_SCALE := 0.796
+const SCREEN_BASE_SCALE := 0.747
+const SCREEN_GLOW_BASE_SCALE := 0.802
+const SCREEN_BLUR_BASE_SCALE := 0.860
+const FACE_ROOT_SCALE := 0.904
+const PARTICLE_SPEED_MULTIPLIER := 0.5
+const PARTICLE_LIFETIME_MULTIPLIER := 1.45
 
 var ControllerComp: ControllerComponent
 var ConstantVelocityComp: ConstantVelocityComponent
@@ -118,7 +121,7 @@ func _ready() -> void:
 	self.ScreenShadow = $screen_shadow
 	self.FacePixels = $face_pixels
 	_configure_tv_screen()
-	self.FacePixels.scale = Vector2.ONE * 0.837
+	self.FacePixels.scale = Vector2.ONE * FACE_ROOT_SCALE
 	_build_feedback_particles()
 	_configure_core_particles()
 
@@ -233,86 +236,88 @@ func _update_visual_state(delta: float, is_attacking: bool) -> void:
 	var sway := sin(flow_time * 6.2) * 0.32
 	var lateral_sway := cos(flow_time * 4.8) * 0.22
 	var drift_dir := (move_dir.rotated(sway) + side_dir * lateral_sway).normalized()
+	var particle_speed := PARTICLE_SPEED_MULTIPLIER
+	var particle_lifetime := PARTICLE_LIFETIME_MULTIPLIER
 
 	if is_moving:
 		self.BodyParticles.local_coords = false
 		self.BodyParticlesDark.local_coords = false
 		self.BodyParticlesBright.local_coords = false
-		self.BodyParticles.orbit_velocity_min = -0.18
-		self.BodyParticles.orbit_velocity_max = 0.18
-		self.BodyParticlesDark.orbit_velocity_min = -0.12
-		self.BodyParticlesDark.orbit_velocity_max = 0.12
-		self.BodyParticlesBright.orbit_velocity_min = -0.16
-		self.BodyParticlesBright.orbit_velocity_max = 0.16
+		self.BodyParticles.orbit_velocity_min = -0.18 * particle_speed
+		self.BodyParticles.orbit_velocity_max = 0.18 * particle_speed
+		self.BodyParticlesDark.orbit_velocity_min = -0.12 * particle_speed
+		self.BodyParticlesDark.orbit_velocity_max = 0.12 * particle_speed
+		self.BodyParticlesBright.orbit_velocity_min = -0.16 * particle_speed
+		self.BodyParticlesBright.orbit_velocity_max = 0.16 * particle_speed
 		self.BodyParticles.emitting = true
 		self.BodyParticlesDark.emitting = true
 		self.BodyParticlesBright.emitting = true
 		self.TrailParticles.emitting = true
 		self.BodyParticles.direction = -drift_dir
 		self.BodyParticles.spread = 158.0
-		self.BodyParticles.gravity = -move_dir * 54.0 + side_dir * sin(flow_time * 7.8) * 28.0 + Vector2(0, 26)
-		self.BodyParticles.lifetime = 0.64
+		self.BodyParticles.gravity = (-move_dir * 54.0 + side_dir * sin(flow_time * 7.8) * 28.0 + Vector2(0, 26)) * particle_speed
+		self.BodyParticles.lifetime = 0.64 * particle_lifetime
 		self.BodyParticlesDark.direction = -drift_dir.rotated(-0.24)
 		self.BodyParticlesDark.spread = 150.0
-		self.BodyParticlesDark.gravity = -move_dir * 34.0 + side_dir * cos(flow_time * 6.0) * 18.0 + Vector2(0, 18)
-		self.BodyParticlesDark.lifetime = 0.60
+		self.BodyParticlesDark.gravity = (-move_dir * 34.0 + side_dir * cos(flow_time * 6.0) * 18.0 + Vector2(0, 18)) * particle_speed
+		self.BodyParticlesDark.lifetime = 0.60 * particle_lifetime
 		self.BodyParticlesBright.direction = (-drift_dir + side_dir * 0.20).normalized()
 		self.BodyParticlesBright.spread = 146.0
-		self.BodyParticlesBright.gravity = -move_dir * 40.0 + side_dir * sin(flow_time * 8.4 + 1.3) * 22.0 + Vector2(0, 16)
-		self.BodyParticlesBright.lifetime = 0.56
+		self.BodyParticlesBright.gravity = (-move_dir * 40.0 + side_dir * sin(flow_time * 8.4 + 1.3) * 22.0 + Vector2(0, 16)) * particle_speed
+		self.BodyParticlesBright.lifetime = 0.56 * particle_lifetime
 		self.TrailParticles.direction = -move_dir
 		self.TrailParticles.spread = 88.0
-		self.TrailParticles.gravity = -move_dir * 52.0 + side_dir * cos(flow_time * 5.4) * 12.0 + Vector2(0, 20)
-		self.TrailParticles.lifetime = 0.42
+		self.TrailParticles.gravity = (-move_dir * 52.0 + side_dir * cos(flow_time * 5.4) * 12.0 + Vector2(0, 20)) * particle_speed
+		self.TrailParticles.lifetime = 0.42 * particle_lifetime
 	else:
 		self.BodyParticles.local_coords = false
 		self.BodyParticlesDark.local_coords = false
 		self.BodyParticlesBright.local_coords = false
-		self.BodyParticles.orbit_velocity_min = -1
-		self.BodyParticles.orbit_velocity_max = 1
-		self.BodyParticlesDark.orbit_velocity_min = -0.7
-		self.BodyParticlesDark.orbit_velocity_max = 0.7
-		self.BodyParticlesBright.orbit_velocity_min = -0.85
-		self.BodyParticlesBright.orbit_velocity_max = 0.85
+		self.BodyParticles.orbit_velocity_min = -1 * particle_speed
+		self.BodyParticles.orbit_velocity_max = 1 * particle_speed
+		self.BodyParticlesDark.orbit_velocity_min = -0.7 * particle_speed
+		self.BodyParticlesDark.orbit_velocity_max = 0.7 * particle_speed
+		self.BodyParticlesBright.orbit_velocity_min = -0.85 * particle_speed
+		self.BodyParticlesBright.orbit_velocity_max = 0.85 * particle_speed
 		self.BodyParticles.emitting = true
 		self.BodyParticlesDark.emitting = true
 		self.BodyParticlesBright.emitting = true
 		self.TrailParticles.emitting = false
 		self.BodyParticles.direction = Vector2.ZERO
 		self.BodyParticles.spread = 180.0
-		self.BodyParticles.gravity = Vector2(0, 12)
-		self.BodyParticles.lifetime = 0.74
+		self.BodyParticles.gravity = Vector2(0, 12) * particle_speed
+		self.BodyParticles.lifetime = 0.74 * particle_lifetime
 		self.BodyParticlesDark.direction = Vector2.ZERO
 		self.BodyParticlesDark.spread = 180.0
-		self.BodyParticlesDark.gravity = Vector2(0, 8)
-		self.BodyParticlesDark.lifetime = 0.70
+		self.BodyParticlesDark.gravity = Vector2(0, 8) * particle_speed
+		self.BodyParticlesDark.lifetime = 0.70 * particle_lifetime
 		self.BodyParticlesBright.direction = Vector2.ZERO
 		self.BodyParticlesBright.spread = 180.0
-		self.BodyParticlesBright.gravity = Vector2(0, 10)
-		self.BodyParticlesBright.lifetime = 0.66
+		self.BodyParticlesBright.gravity = Vector2(0, 10) * particle_speed
+		self.BodyParticlesBright.lifetime = 0.66 * particle_lifetime
 		self.TrailParticles.direction = Vector2.ZERO
 		self.TrailParticles.spread = 180.0
 		self.TrailParticles.gravity = Vector2.ZERO
-		self.TrailParticles.lifetime = 0.42
+		self.TrailParticles.lifetime = 0.42 * particle_lifetime
 
 	if _dash_timer > 0.0:
 		self.TrailParticles.scale_amount_max = 11.04
-		self.TrailParticles.initial_velocity_max = 180.0
+		self.TrailParticles.initial_velocity_max = 180.0 * particle_speed
 	else:
 		self.TrailParticles.scale_amount_max = 7.84
-		self.TrailParticles.initial_velocity_max = 100.0
+		self.TrailParticles.initial_velocity_max = 100.0 * particle_speed
 
 	var pulse := sin(float(Time.get_ticks_msec()) * 0.0062) * 0.5 + 0.5
 	var motion_boost := 1.0 if is_moving else 0.0
 	var dash_boost := 1.0 if _dash_timer > 0.0 else 0.0
 	var flux_boost := 1.0 if _weapon_swap_buff_timer > 0.0 else 0.0
-	self.BodyParticlesBright.initial_velocity_max = 150.0 + motion_boost * 18.0 + dash_boost * 36.0 + flux_boost * 20.0
+	self.BodyParticlesBright.initial_velocity_max = (150.0 + motion_boost * 18.0 + dash_boost * 36.0 + flux_boost * 20.0) * particle_speed
 	self.BodyParticlesBright.scale_amount_max = 4.8 + pulse * 0.75 + dash_boost * 1.0 + flux_boost * 0.8
 	self.BodyParticlesBright.color = Color(0.43, 0.16, 0.97, 0.54 + pulse * 0.12 + dash_boost * 0.08 + flux_boost * 0.10)
-	self.BodyParticlesDark.initial_velocity_max = 132.0 + motion_boost * 14.0 + dash_boost * 24.0
+	self.BodyParticlesDark.initial_velocity_max = (132.0 + motion_boost * 14.0 + dash_boost * 24.0) * particle_speed
 	self.BodyParticlesDark.scale_amount_max = 4.4 + pulse * 0.6 + flux_boost * 0.4
 	self.BodyParticlesDark.color = Color(0.0, 0.0, 0.0, 0.46 + pulse * 0.08)
-	self.BodyParticles.initial_velocity_max = 154.0 + motion_boost * 26.0 + dash_boost * 30.0 + flux_boost * 18.0
+	self.BodyParticles.initial_velocity_max = (154.0 + motion_boost * 26.0 + dash_boost * 30.0 + flux_boost * 18.0) * particle_speed
 	self.BodyParticles.scale_amount_max = 8.64 + pulse * 0.72 + dash_boost * 0.96 + flux_boost * 0.72
 	self.BodyParticles.color = Color(0.10, 0.04, 0.48, 0.38 + pulse * 0.10 + dash_boost * 0.05 + flux_boost * 0.08)
 

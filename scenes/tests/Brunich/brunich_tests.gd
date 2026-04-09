@@ -13,6 +13,13 @@ const PROMPT_STEAL := "press E to steal :: bind.enemy.attack()"
 const PROMPT_OPEN := "press E to open :: door.teleport()"
 const PROMPT_LOCKED := "complete.room.to.finish()"
 const ROOM_TRANSITION_LOCK := 0.45
+const HUD_MARGIN := Vector2(18.0, 18.0)
+const HUD_BAR_SIZE := Vector2(214.0, 16.0)
+const HUD_BAR_GAP := 10.0
+const HUD_FRAME_COLOR := Color(0.12, 0.09, 0.16, 0.94)
+const HUD_BACK_COLOR := Color(0.03, 0.03, 0.05, 0.90)
+const HUD_HEALTH_COLOR := Color(0.88, 0.16, 0.16, 0.96)
+const HUD_MANA_COLOR := Color(0.06, 0.12, 0.32, 0.96)
 
 var DisableSceneReloadForTests := false
 var RestartWasRequested := false
@@ -26,6 +33,12 @@ var _exit_blocker_collision: CollisionShape2D = null
 var _prompt_root: Node2D = null
 var _prompt_bg: Polygon2D = null
 var _prompt_label: Label = null
+var _hud_layer: CanvasLayer = null
+var _hud_root: Control = null
+var _health_fill: ColorRect = null
+var _mana_fill: ColorRect = null
+var _health_label: Label = null
+var _mana_label: Label = null
 
 func _ready() -> void:
 	_player = get_node_or_null("MC") as Node2D
@@ -37,17 +50,22 @@ func _ready() -> void:
 	_bind_existing_enemy()
 	_build_exit_blocker()
 	_build_command_prompt()
+	_build_hud()
 	_set_exit_unlocked(false)
+	_update_hud_bars()
 
 func _process(delta: float) -> void:
 	_teleport_cooldown = maxf(_teleport_cooldown - delta, 0.0)
 	_update_interaction_prompt()
+	_update_hud_bars()
 	if InputMap.has_action("steal") and Input.is_action_just_pressed("steal"):
 		_try_context_action()
 
 func _bind_player(player: Node) -> void:
 	if not player.HealthComp.on_died.is_connected(_handle_player_died):
 		player.HealthComp.on_died.connect(_handle_player_died)
+	if not player.HealthComp.on_health_changed.is_connected(_handle_player_health_changed):
+		player.HealthComp.on_health_changed.connect(_handle_player_health_changed)
 
 func _bind_existing_enemy() -> void:
 	var enemy := get_node_or_null("EnemyRegulated") as CharacterBody2D
@@ -261,3 +279,87 @@ func _clear_prompt() -> void:
 	CurrentPromptText = ""
 	if _prompt_root != null:
 		_prompt_root.visible = false
+
+func _build_hud() -> void:
+	_hud_layer = CanvasLayer.new()
+	_hud_layer.name = "hud_layer"
+	_hud_layer.layer = 20
+	add_child(_hud_layer)
+
+	_hud_root = Control.new()
+	_hud_root.name = "hud_root"
+	_hud_root.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_hud_root.position = HUD_MARGIN
+	_hud_layer.add_child(_hud_root)
+
+	var health_bar := _create_hud_bar("HP", Vector2.ZERO, HUD_HEALTH_COLOR)
+	_health_fill = health_bar["fill"] as ColorRect
+	_health_label = health_bar["label"] as Label
+
+	var mana_bar := _create_hud_bar("MN", Vector2(0.0, HUD_BAR_SIZE.y + HUD_BAR_GAP), HUD_MANA_COLOR)
+	_mana_fill = mana_bar["fill"] as ColorRect
+	_mana_label = mana_bar["label"] as Label
+
+func _create_hud_bar(label_text: String, local_position: Vector2, fill_color: Color) -> Dictionary:
+	var container := Control.new()
+	container.name = "%s_bar" % label_text.to_lower()
+	container.position = local_position
+	container.custom_minimum_size = Vector2(HUD_BAR_SIZE.x + 36.0, HUD_BAR_SIZE.y + 2.0)
+	_hud_root.add_child(container)
+
+	var label := Label.new()
+	label.name = "%s_label" % label_text.to_lower()
+	var label_settings := LabelSettings.new()
+	label_settings.font_size = 12
+	label_settings.font_color = Color(0.90, 0.94, 1.0, 0.92)
+	label.label_settings = label_settings
+	label.text = label_text
+	label.position = Vector2(0.0, -1.0)
+	label.size = Vector2(28.0, HUD_BAR_SIZE.y + 2.0)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	container.add_child(label)
+
+	var frame := ColorRect.new()
+	frame.name = "%s_frame" % label_text.to_lower()
+	frame.color = HUD_FRAME_COLOR
+	frame.position = Vector2(30.0, 0.0)
+	frame.size = HUD_BAR_SIZE + Vector2(4.0, 4.0)
+	container.add_child(frame)
+
+	var background := ColorRect.new()
+	background.name = "%s_bg" % label_text.to_lower()
+	background.color = HUD_BACK_COLOR
+	background.position = Vector2(32.0, 2.0)
+	background.size = HUD_BAR_SIZE
+	container.add_child(background)
+
+	var fill := ColorRect.new()
+	fill.name = "%s_fill" % label_text.to_lower()
+	fill.color = fill_color
+	fill.position = background.position
+	fill.size = HUD_BAR_SIZE
+	container.add_child(fill)
+
+	return {
+		"container": container,
+		"frame": frame,
+		"background": background,
+		"fill": fill,
+		"label": label,
+	}
+
+func _handle_player_health_changed(_health: int, _old_health: int) -> void:
+	_update_hud_bars()
+
+func _update_hud_bars() -> void:
+	if _health_fill == null or _mana_fill == null:
+		return
+
+	var health_ratio := 1.0
+	if _player != null and _player.HealthComp != null:
+		var max_health := maxf(float(_player.HealthComp.get_max_health()), 1.0)
+		health_ratio = clampf(float(_player.HealthComp.get_health()) / max_health, 0.0, 1.0)
+
+	_health_fill.size.x = HUD_BAR_SIZE.x * health_ratio
+	_health_fill.size.y = HUD_BAR_SIZE.y
+	_mana_fill.size = HUD_BAR_SIZE

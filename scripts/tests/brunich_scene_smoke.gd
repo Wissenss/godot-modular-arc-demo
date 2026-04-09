@@ -25,8 +25,20 @@ func _run() -> void:
 	var enemy: CharacterBody2D = world.get_node("EnemyRegulated") as CharacterBody2D
 	var weapon: Node = enemy.get_node("enemy_weapon")
 	var camera := mc.get_node("camera") as Camera2D
+	var hud_layer := world.get_node_or_null("hud_layer") as CanvasLayer
+	var hud_root := hud_layer.get_node_or_null("hud_root") as Control if hud_layer != null else null
+	var health_fill := hud_root.get_node_or_null("hp_bar/hp_fill") as ColorRect if hud_root != null else null
+	var mana_fill := hud_root.get_node_or_null("mn_bar/mn_fill") as ColorRect if hud_root != null else null
 
 	_expect(floor_tiles != null, "floor_tiles debe existir")
+	_expect(hud_layer != null, "Brunich debe tener una capa HUD fija al viewport")
+	_expect(hud_root != null, "Brunich debe construir un contenedor HUD")
+	_expect(health_fill != null, "Brunich debe tener una barra de vida arriba a la izquierda")
+	_expect(mana_fill != null, "Brunich debe tener una barra de mana arriba a la izquierda")
+	if health_fill != null:
+		_expect(health_fill.color.r > health_fill.color.g + 0.3, "la barra de vida debe verse roja")
+	if mana_fill != null:
+		_expect(mana_fill.color.b > mana_fill.color.r + 0.12, "la barra de mana debe verse azul oscuro")
 	if floor_tiles != null and floor_tiles.tile_set != null:
 		_expect(floor_tiles.tile_set.tile_size == Vector2i(32, 32), "el tileset de Brunich debe usar tiles de 32x32")
 		_expect(floor_tiles.get_used_cells().size() >= 700, "el mapa debe tener suficiente densidad visual para una arena mas detallada")
@@ -55,9 +67,10 @@ func _run() -> void:
 	_expect(mc.has_node("face_pixels"), "el MC debe tener una cara pixel dentro de la pantalla")
 	_expect((mc.get_node("screen_fill") as Polygon2D).polygon.size() > 4, "la pantalla del MC debe leerse mas como un CRT con esquinas trabajadas")
 	_expect((mc.get_node("screen_fill") as Polygon2D).material != null, "la pantalla del MC debe usar un material para leerse mas como display")
-	_expect((mc.get_node("screen_shell") as Polygon2D).scale.x < 0.75, "el cuadrado del MC debe crecer un poco respecto a la iteracion anterior")
+	_expect((mc.get_node("screen_shell") as Polygon2D).scale.x <= 0.78, "el cuadrado del MC debe crecer ocho por ciento sin dispararse de tamano")
 	_expect((mc.get_node("screen_fill") as Polygon2D).scale.x < 0.95, "el display del MC debe sentirse mas pequeno que la version anterior")
-	_expect((mc.get_node("screen_shell") as Polygon2D).scale.x >= 0.68, "el cuadrado del MC debe seguir viendose claro tras crecer un poco")
+	_expect((mc.get_node("screen_shell") as Polygon2D).scale.x >= 0.74, "el cuadrado del MC debe verse un poco mas grande en esta iteracion")
+	_expect(mc_source.find("const PARTICLE_SPEED_MULTIPLIER := 0.5") != -1, "las particulas cuadradas del MC deben ir cincuenta por ciento mas lentas")
 	_expect(mc.has_method("get_available_face_expressions"), "el MC debe exponer el catalogo de caritas disponibles")
 	_expect(mc.has_method("get_current_face_expression"), "el MC debe exponer la carita actual para debug")
 	var screen_shader_text := FileAccess.get_file_as_string("res://scenes/tests/Brunich/scanline_shader.gdshader")
@@ -97,10 +110,19 @@ func _run() -> void:
 	_expect(pickup_source.find("const PICKUP_DURATION := 10.0") != -1, "el arma en el suelo debe poder robarse durante 10 segundos")
 
 	var initial_player_health: int = mc.HealthComp.get_health()
+	var initial_health_bar_width := health_fill.size.x if health_fill != null else 0.0
 	mc.Weapon._shoot(Vector2.RIGHT)
 	await _wait_physics_frames(2)
 	_expect(mc.HealthComp.get_health() == initial_player_health, "disparar no debe danar al MC con su propio proyectil")
 	_expect(not mc.GlitchPolygon.visible, "disparar no debe activar el glitch de dano del MC")
+	mc.HealthComp.take_damage(10)
+	await _wait_frames(1)
+	if health_fill != null:
+		_expect(health_fill.size.x < initial_health_bar_width, "la barra de vida debe reducirse visualmente al recibir dano")
+	if mana_fill != null:
+		_expect(is_equal_approx(mana_fill.size.x, 214.0), "la barra de mana debe mantenerse llena mientras aun no tiene funcionalidad")
+	mc.HealthComp.set_health(initial_player_health)
+	await _wait_frames(1)
 	_expect(mc.get_available_face_expressions().size() >= 25, "el MC debe tener un catalogo amplio de caritas para diferentes situaciones")
 	_assert_player_face_stays_stable_while_moving(mc)
 	_assert_face_pixels_are_smaller(mc)
@@ -207,8 +229,8 @@ func _assert_face_pixels_are_smaller(mc: Node2D) -> void:
 	if face_pixels.get_child_count() == 0:
 		return
 	var first_pixel := face_pixels.get_child(0) as Polygon2D
-	_expect(first_pixel.scale.x >= 0.66 and first_pixel.scale.x <= 0.74, "los pixeles de las expresiones deben crecer un poco para leerse mejor")
-	_expect(face_pixels.scale.x >= 0.82 and face_pixels.scale.x <= 0.85, "la cara completa del MC debe crecer un poco junto con el display")
+	_expect(first_pixel.scale.x >= 0.66 and first_pixel.scale.x <= 0.74, "los pixeles base de las expresiones deben seguir siendo compactos")
+	_expect(face_pixels.scale.x >= 0.89 and face_pixels.scale.x <= 0.92, "la cara completa del MC debe crecer junto con el display en esta iteracion")
 	_expect(first_pixel.color.r >= 0.70 and absf(first_pixel.color.r - first_pixel.color.g) <= 0.08 and absf(first_pixel.color.g - first_pixel.color.b) <= 0.10, "las expresiones del MC deben pasar a gris claro")
 
 func _assert_room_progression_and_attack_steal(world: Node, mc: Node2D, enemy: CharacterBody2D) -> void:
@@ -260,6 +282,7 @@ func _assert_room_progression_and_attack_steal(world: Node, mc: Node2D, enemy: C
 		if stolen_projectile != null:
 			var outer_ring := stolen_projectile.get_node("outer_ring") as Polygon2D
 			var trail_particles := stolen_projectile.get_node("trail_particles") as CPUParticles2D
+			_expect(stolen_projectile.HurtboxComp.Damage >= 48, "si un ataque robado es mas lento y pesado, debe compensar con mas dano")
 			_expect(outer_ring.color.b > outer_ring.color.g and outer_ring.color.r > 0.35, "el proyectil robado debe diferenciarse con una circunferencia morada del MC")
 			_expect(trail_particles.color.r > 0.45 and trail_particles.color.b > trail_particles.color.g, "todos los ataques robados deben mantener una estela morada del MC")
 	await _wait_physics_frames(40)
