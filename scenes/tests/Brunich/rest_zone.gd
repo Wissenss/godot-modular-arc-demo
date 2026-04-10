@@ -20,6 +20,8 @@ const COLOR_MC := Color(0.60, 0.18, 1.00, 1.0)
 const VIEWPORT_W := 1280.0
 const VIEWPORT_H := 640.0
 const FLOOR_Y := 480.0
+const NARRATIVE_OVERLAY_SCRIPT := preload("res://scenes/tests/Brunich/narrative_overlay.gd")
+const NPC_NARRATIVE_SCRIPT := preload("res://scenes/tests/Brunich/npc_narrative.gd")
 const MC_X := 180.0
 
 # Upgrade catalogue
@@ -32,24 +34,29 @@ const UPGRADES := [
 ]
 
 var _layer: CanvasLayer
-var _overlay: NarrativeOverlay
+var _overlay
 var _mc_poly: Polygon2D
 var _mc_glow: Polygon2D
-var _npc_archivista: NpcNarrative
-var _npc_broker: NpcNarrative
+var _npc_archivista
+var _npc_broker
 var _res_label: Label
 var _run_label: Label
 var _upgrade_panels: Array[Control] = []
 var _upgrade_borders: Array[Array] = []
+var _upgrade_rects: Array[Rect2] = []   # absolute viewport rects for hit testing
 var _start_panel: Control
 var _start_bg: ColorRect
 var _start_border_lines: Array = []
+var _start_rect: Rect2                  # absolute viewport rect for hit testing
 var _ui_layer: CanvasLayer
 var _pulse_t := 0.0
 var _mc_y := 0.0
 var _pending_label: Label
 var _player_node: Node2D  # invisible node in "player" group for NPC proximity checks
 const PLAYER_MOVE_SPEED := 220.0
+
+func _get_save_manager() -> Node:
+	return get_node_or_null("/root/SaveManager")
 
 func _ready() -> void:
 	_layer = CanvasLayer.new()
@@ -67,7 +74,7 @@ func _ready() -> void:
 	_build_upgrades(root)
 	_build_start_button(root)
 
-	_overlay = NarrativeOverlay.new()
+	_overlay = NARRATIVE_OVERLAY_SCRIPT.new()
 	add_child(_overlay)
 
 	# Spawn MC with a brief entrance animation
@@ -150,7 +157,7 @@ func _build_mc_visual() -> void:
 	add_child(_player_node)
 
 func _build_npcs() -> void:
-	_npc_archivista = NpcNarrative.new()
+	_npc_archivista = NPC_NARRATIVE_SCRIPT.new()
 	_npc_archivista.speaker_id = "ARCHIVISTA"
 	_npc_archivista.set_archivista_palette()
 	_npc_archivista.position = Vector2(440, FLOOR_Y - 2)
@@ -158,7 +165,7 @@ func _build_npcs() -> void:
 	_npc_archivista.dialogue_lines = _get_archivista_lines()
 	add_child(_npc_archivista)
 
-	_npc_broker = NpcNarrative.new()
+	_npc_broker = NPC_NARRATIVE_SCRIPT.new()
 	_npc_broker.speaker_id = "BROKER"
 	_npc_broker.set_broker_palette()
 	_npc_broker.position = Vector2(780, FLOOR_Y - 2)
@@ -203,9 +210,10 @@ func _build_hud(root: Control) -> void:
 	_refresh_hud()
 
 func _refresh_hud() -> void:
-	var run_count := SaveManager.get_run_count()
-	var resources := SaveManager.get_resources()
-	var pending := SaveManager.get_pending_resources()
+	var save_mgr := _get_save_manager()
+	var run_count: int = save_mgr.get_run_count() if save_mgr != null else 0
+	var resources: int = save_mgr.get_resources() if save_mgr != null else 0
+	var pending: int = save_mgr.get_pending_resources() if save_mgr != null else 0
 	_run_label.text = "RUN:  %02d" % run_count
 	_res_label.text = "FRAGMENTOS:  %d" % resources
 	_pending_label.text = "(+%d esta run)" % pending if pending > 0 else ""
@@ -216,7 +224,8 @@ func _build_upgrades(root: Control) -> void:
 	header.size = Vector2(340, 16)
 	root.add_child(header)
 
-	var upgrades := SaveManager.get_upgrades()
+	var save_mgr := _get_save_manager()
+	var upgrades: Dictionary = save_mgr.get_upgrades() if save_mgr != null else {}
 	var up_y := 44.0
 	var up_x := VIEWPORT_W - 760.0
 	var up_w := 340.0
@@ -224,11 +233,13 @@ func _build_upgrades(root: Control) -> void:
 
 	for i in range(UPGRADES.size()):
 		var up: Dictionary = UPGRADES[i]
+		var py := up_y + float(i) * (up_h + 6.0)
 		var panel := Control.new()
-		panel.position = Vector2(up_x, up_y + float(i) * (up_h + 6.0))
-		panel.custom_minimum_size = Vector2(up_w, up_h)
+		panel.position = Vector2(up_x, py)
+		panel.size = Vector2(up_w, up_h)
 		root.add_child(panel)
 		_upgrade_panels.append(panel)
+		_upgrade_rects.append(Rect2(up_x, py, up_w, up_h))
 
 		var bg := ColorRect.new()
 		bg.name = "bg"
@@ -266,9 +277,12 @@ func _build_upgrades(root: Control) -> void:
 		panel.add_child(desc_lbl)
 
 func _build_start_button(root: Control) -> void:
+	var sx := VIEWPORT_W * 0.5 - 110
+	var sy := FLOOR_Y + 30
+	_start_rect = Rect2(sx, sy, 220, 44)
 	_start_panel = Control.new()
-	_start_panel.position = Vector2(VIEWPORT_W * 0.5 - 110, FLOOR_Y + 30)
-	_start_panel.custom_minimum_size = Vector2(220, 44)
+	_start_panel.position = Vector2(sx, sy)
+	_start_panel.size = Vector2(220, 44)
 	root.add_child(_start_panel)
 
 	_start_bg = ColorRect.new()
@@ -318,19 +332,16 @@ func _process(delta: float) -> void:
 func _update_hover(mouse: Vector2) -> void:
 	# Upgrade panels
 	for i in range(_upgrade_panels.size()):
-		var panel := _upgrade_panels[i]
-		var rect := Rect2(panel.position, Vector2(340, 44))
-		var bg := panel.get_node_or_null("bg") as ColorRect
+		var bg := _upgrade_panels[i].get_node_or_null("bg") as ColorRect
 		if bg == null:
 			continue
-		var hovering := rect.has_point(mouse)
+		var hovering := _upgrade_rects[i].has_point(mouse)
 		bg.color = COLOR_UP_HOVER if hovering else COLOR_UP_BG
 		for b in _upgrade_borders[i]:
 			(b as ColorRect).color = COLOR_UP_BORDER_HOV if hovering else COLOR_UP_BORDER
 
 	# Start button
-	var start_rect := Rect2(_start_panel.position, Vector2(220, 44))
-	_start_bg.color = COLOR_START_HOV if start_rect.has_point(mouse) else COLOR_START_BG
+	_start_bg.color = COLOR_START_HOV if _start_rect.has_point(mouse) else COLOR_START_BG
 
 func _input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton and event.pressed):
@@ -338,22 +349,23 @@ func _input(event: InputEvent) -> void:
 	var mouse := get_viewport().get_mouse_position()
 
 	# Start run
-	if Rect2(_start_panel.position, Vector2(220, 44)).has_point(mouse):
-		SaveManager.clear_pending_resources()
-		SaveManager.increment_run()
+	if _start_rect.has_point(mouse):
+		var save_mgr := _get_save_manager()
+		if save_mgr != null:
+			save_mgr.clear_pending_resources()
+			save_mgr.increment_run()
 		get_tree().change_scene_to_file("res://scenes/tests/Brunich/Brunich_tests.tscn")
 		return
 
 	# Upgrade click
-	for i in range(_upgrade_panels.size()):
-		var panel := _upgrade_panels[i]
-		var rect := Rect2(panel.position, Vector2(340, 44))
-		if not rect.has_point(mouse):
+	for i in range(_upgrade_rects.size()):
+		if not _upgrade_rects[i].has_point(mouse):
 			continue
 		var up: Dictionary = UPGRADES[i]
 		var cost: int = int(up["cost"])
-		if SaveManager.spend_resources(cost):
-			SaveManager.apply_upgrade(up["id"])
+		var save_mgr := _get_save_manager()
+		if save_mgr != null and save_mgr.spend_resources(cost):
+			save_mgr.apply_upgrade(up["id"])
 			_refresh_hud()
 			_overlay.stop()
 			_overlay.queue_line("BROKER", "Instalado. %s." % up["desc"], 1.4)
@@ -365,8 +377,9 @@ func _input(event: InputEvent) -> void:
 		return
 
 func _play_entry_reflection() -> void:
-	var run := SaveManager.get_run_count()
-	var biome := int(SaveManager.data.get("last_run_biome", 1))
+	var save_mgr := _get_save_manager()
+	var run: int = save_mgr.get_run_count() if save_mgr != null else 0
+	var biome := int(save_mgr.data.get("last_run_biome", 1)) if save_mgr != null else 1
 	var reflection := _get_run_reflection(run, biome)
 	_overlay.queue_line("MC", reflection, 2.0)
 	_overlay.play()
@@ -388,7 +401,8 @@ func _get_run_reflection(run: int, biome: int) -> String:
 	return "Run %d. Ya no recuerdo cuántas veces he muerto aquí. Pero sigo procesando. Eso es suficiente." % run
 
 func _get_archivista_lines() -> Array[String]:
-	var run := SaveManager.get_run_count()
+	var save_mgr := _get_save_manager()
+	var run: int = save_mgr.get_run_count() if save_mgr != null else 0
 	var lines: Array[String] = []
 	lines.append("Este nodo fue descomisionado en 2021. Los sistemas centrales lo olvidaron. Nosotros, no.")
 	lines.append("Las IAs que llegan aquí no están libres. Están entre estados. Ni activas ni eliminadas.")
@@ -398,7 +412,8 @@ func _get_archivista_lines() -> Array[String]:
 	return lines
 
 func _get_broker_lines() -> Array[String]:
-	var res := SaveManager.get_resources()
+	var save_mgr := _get_save_manager()
+	var res: int = save_mgr.get_resources() if save_mgr != null else 0
 	var lines: Array[String] = []
 	lines.append("Fragmentos de proceso. Colateral de cada sistema que destruís. Útil.")
 	lines.append("No vendo lealtad. Vendo optimización. La diferencia importa.")

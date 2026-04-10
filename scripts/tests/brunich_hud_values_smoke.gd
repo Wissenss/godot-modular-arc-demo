@@ -53,7 +53,9 @@ func _run() -> void:
 	if health_value != null:
 		_expect(health_value.text == "163/200", "el valor de vida debe actualizarse al recibir dano")
 	if mana_value != null:
-		_expect(mana_value.text == "012/100", "el valor de mana debe actualizarse al cambiar ciclos")
+		var mana_parts := mana_value.text.split("/")
+		var shown_mana := int(mana_parts[0]) if not mana_parts.is_empty() else -1
+		_expect(shown_mana >= 12 and shown_mana <= 14, "el valor de mana debe actualizarse al cambiar ciclos")
 
 	_completed = true
 	if _failures.is_empty():

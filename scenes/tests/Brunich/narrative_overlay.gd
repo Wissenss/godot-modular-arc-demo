@@ -53,8 +53,8 @@ func _build() -> void:
 	var top_border := ColorRect.new()
 	top_border.color = Color(0.22, 0.36, 0.60, 0.50)
 	top_border.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	top_border.custom_minimum_size = Vector2(0, 1)
-	top_border.size = Vector2(0, 1)
+	top_border.offset_top = 0.0
+	top_border.offset_bottom = 1.0
 	_panel.add_child(top_border)
 
 	_speaker = _mk_lbl(10, Color(0.50, 0.55, 0.66, 0.80))

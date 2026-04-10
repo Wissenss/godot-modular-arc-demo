@@ -3,6 +3,13 @@
 ## Correr: godot --headless -s res://scripts/tests/brunich_metagame_smoke.gd
 extends SceneTree
 
+const NARRATIVE_OVERLAY_SCRIPT := preload("res://scenes/tests/Brunich/narrative_overlay.gd")
+const NPC_NARRATIVE_SCRIPT := preload("res://scenes/tests/Brunich/npc_narrative.gd")
+const MAIN_MENU_SCENE := preload("res://scenes/tests/Brunich/main_menu.tscn")
+const INTRO_SCENE := preload("res://scenes/tests/Brunich/intro_cinematic.tscn")
+const REST_ZONE_SCENE := preload("res://scenes/tests/Brunich/rest_zone.tscn")
+const BRUNICH_SCENE := preload("res://scenes/tests/Brunich/Brunich_tests.tscn")
+
 var _failures: Array[String] = []
 var _checks := 0
 
@@ -16,9 +23,11 @@ func _run() -> void:
 	_test_save_manager_slots_independent()
 	_test_narrative_overlay_instantiation()
 	_test_npc_narrative_instantiation()
+	_test_scene_shells_load()
 	_test_brunich_tests_loads()
 	await _wait_frames(4)
 	await _test_brunich_tests_narrative_hooks()
+	await _test_scene_flow_basics()
 	_report()
 
 # ── SaveManager ───────────────────────────────────────────────────────────────
@@ -36,16 +45,16 @@ func _test_save_manager_basics() -> void:
 	_expect(sm.get_run_count() >= 0, "run_count debe ser >= 0")
 
 	# Recursos
-	var res_before := sm.get_resources()
+	var res_before: int = sm.get_resources()
 	sm.add_resources(10)
 	_expect(sm.get_resources() == res_before + 10, "add_resources(10) debe sumar 10")
 	_expect(sm.get_pending_resources() >= 10, "pending_resources debe incluir lo recién sumado")
 
-	var spent := sm.spend_resources(5)
+	var spent: bool = sm.spend_resources(5)
 	_expect(spent, "spend_resources(5) debe devolver true si hay suficiente")
 	_expect(sm.get_resources() == res_before + 5, "recursos deben ser res_before+5 tras gastar 5")
 
-	var failed := sm.spend_resources(99999)
+	var failed: bool = sm.spend_resources(99999)
 	_expect(not failed, "spend_resources con monto excesivo debe devolver false")
 
 	# Limpiar
@@ -93,13 +102,14 @@ func _test_save_manager_slots_independent() -> void:
 
 	# Slot 1 y slot 2 son independientes
 	sm.load_slot(1)
-	var res_slot1 := sm.get_resources()
+	var res_slot1: int = sm.get_resources()
 
 	sm.load_slot(2)
-	var res_slot2 := sm.get_resources()
+	var res_slot2: int = sm.get_resources()
 
 	sm.load_slot(1)
 	_expect(sm.get_resources() == res_slot1, "recargar slot 1 no debe ver datos del slot 2")
+	_expect(res_slot2 >= 0, "slot 2 debe poder cargarse sin invalidar sus recursos")
 	_expect(sm.active_slot == 1, "active_slot debe ser 1")
 
 func _test_narrative_overlay_instantiation() -> void:
@@ -112,7 +122,7 @@ func _test_narrative_overlay_instantiation() -> void:
 	if script == null:
 		return
 
-	var overlay := NarrativeOverlay.new()
+	var overlay: CanvasLayer = NARRATIVE_OVERLAY_SCRIPT.new()
 	_expect(overlay != null, "NarrativeOverlay.new() no debe ser null")
 	_expect(overlay.has_method("queue_line"), "NarrativeOverlay debe tener queue_line()")
 	_expect(overlay.has_method("queue_sequence"), "NarrativeOverlay debe tener queue_sequence()")
@@ -126,7 +136,7 @@ func _test_npc_narrative_instantiation() -> void:
 	var script_path := "res://scenes/tests/Brunich/npc_narrative.gd"
 	_expect(ResourceLoader.exists(script_path), "npc_narrative.gd debe existir")
 
-	var npc := NpcNarrative.new()
+	var npc: Node2D = NPC_NARRATIVE_SCRIPT.new()
 	root.add_child(npc)
 	_expect(npc != null, "NpcNarrative.new() no debe ser null")
 	_expect(npc.has_method("set_archivista_palette"), "NpcNarrative debe tener set_archivista_palette()")
@@ -135,10 +145,15 @@ func _test_npc_narrative_instantiation() -> void:
 	_expect(npc.get("dialogue_lines") != null, "NpcNarrative debe exponer dialogue_lines")
 	npc.queue_free()
 
+func _test_scene_shells_load() -> void:
+	_expect(MAIN_MENU_SCENE != null, "main_menu.tscn debe cargar")
+	_expect(INTRO_SCENE != null, "intro_cinematic.tscn debe cargar")
+	_expect(REST_ZONE_SCENE != null, "rest_zone.tscn debe cargar")
+
 func _test_brunich_tests_loads() -> void:
 	var scene_path := "res://scenes/tests/Brunich/Brunich_tests.tscn"
 	_expect(ResourceLoader.exists(scene_path), "Brunich_tests.tscn debe existir")
-	var packed := load(scene_path)
+	var packed := BRUNICH_SCENE
 	_expect(packed != null, "Brunich_tests.tscn debe cargar sin parse errors (script incluido)")
 
 func _test_brunich_tests_narrative_hooks() -> void:
@@ -148,7 +163,7 @@ func _test_brunich_tests_narrative_hooks() -> void:
 		sm.load_slot(0)
 		sm.data["has_intro_played"] = true   # evita redirigir al intro
 
-	var scene := load("res://scenes/tests/Brunich/Brunich_tests.tscn").instantiate()
+	var scene: Node = BRUNICH_SCENE.instantiate()
 	if has_property(scene, "DisableSceneReloadForTests"):
 		scene.DisableSceneReloadForTests = true
 	root.add_child(scene)
@@ -166,6 +181,36 @@ func _test_brunich_tests_narrative_hooks() -> void:
 		scene._apply_upgrades_to_player()  # no debe crashear con upgrades vacíos
 
 	scene.queue_free()
+
+func _test_scene_flow_basics() -> void:
+	var sm: Node = root.get_node_or_null("SaveManager")
+	_expect(sm != null, "SaveManager debe seguir disponible para el flujo de escenas")
+	if sm == null:
+		return
+
+	sm.delete_slot(2)
+	sm.load_slot(2)
+	_expect(sm.is_first_run(), "un slot nuevo debe detectar el primer run y mandar a la intro única")
+
+	var intro: Node = INTRO_SCENE.instantiate()
+	root.add_child(intro)
+	await _wait_frames(3)
+	_expect(intro.get("_overlay") != null, "la intro debe construir NarrativeOverlay")
+	_expect(intro.has_method("_on_sequence_done"), "la intro debe exponer el cierre de secuencia")
+	intro._on_sequence_done()
+	await _wait_frames(2)
+	_expect(bool(sm.data.get("has_intro_played", false)), "al terminar la intro el slot debe quedar marcado como intro ya vista")
+	if is_instance_valid(intro):
+		intro.queue_free()
+
+	var rest_zone: Node = REST_ZONE_SCENE.instantiate()
+	root.add_child(rest_zone)
+	await _wait_frames(3)
+	_expect(rest_zone.get("_overlay") != null, "el hub/rest zone debe construir NarrativeOverlay")
+	_expect(rest_zone.get("_player_node") != null, "el hub debe crear el nodo invisible del jugador para NPCs")
+	_expect(rest_zone.has_method("_play_entry_reflection"), "el hub debe tener reflexión de entrada")
+	_expect(rest_zone.has_method("_refresh_hud"), "el hub debe poder refrescar el HUD con datos del save")
+	rest_zone.queue_free()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

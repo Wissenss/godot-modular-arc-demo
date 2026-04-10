@@ -31,6 +31,9 @@ func _run() -> void:
 	_expect(weapon != null, "el AI core debe usar un arma beam propia")
 	if weapon != null:
 		_expect(String(weapon.get_attack_profile_for_player().get("fire_mode", "")) == "beam", "el ataque robable del AI core debe ser beam")
+		var beam_profile: Dictionary = weapon._get_beam_profile()
+		_expect(float(beam_profile.get("active_duration", 0.0)) >= 6.0, "el beam del AI core debe durar cerca de 6 segundos antes de enfriarse")
+		_expect(float(beam_profile.get("track_speed", 0.0)) >= 16.0, "el beam del AI core debe rastrear al jugador con mucha agresividad")
 		weapon.ShootInterval = 0.05
 
 	var face_shell := enemy.get_node_or_null("face_shell") as Polygon2D
@@ -49,9 +52,11 @@ func _run() -> void:
 	var beam := beams[0] as Node2D
 	var start_rotation := beam.rotation
 	player.global_position = Vector2(940.0, 180.0)
-	await _wait_frames(16)
-	_expect(absf(wrapf(beam.rotation - start_rotation, -PI, PI)) > 0.08, "el beam del AI core debe seguir al jugador mientras dura")
+	await _wait_frames(10)
+	_expect(absf(wrapf(beam.rotation - start_rotation, -PI, PI)) > 0.16, "el beam del AI core debe seguir al jugador mientras dura")
 	_expect(player.HealthComp.get_health() < player.HealthComp.get_max_health(), "el beam del AI core debe hacer dano por segundo al tocar al jugador")
+	await _wait_frames(220)
+	_expect(is_instance_valid(beam) and not beam.is_queued_for_deletion(), "el beam del AI core debe mantenerse activo por varios segundos")
 
 	_finish(world)
 
@@ -69,7 +74,7 @@ func _finish(world: Node) -> void:
 	quit(1)
 
 func _arm_timeout() -> void:
-	await create_timer(10.0).timeout
+	await create_timer(14.0).timeout
 	if _completed:
 		return
 	push_error("brunich_ai_core_beam_smoke timeout")

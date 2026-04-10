@@ -6,6 +6,7 @@ const ENEMY_SPREAD_SCENE := preload("res://scenes/tests/Brunich/enemy_spread.tsc
 const ENEMY_PIERCE_SCENE := preload("res://scenes/tests/Brunich/enemy_pierce.tscn")
 const ENEMY_SLOWBEAM_SCENE := preload("res://scenes/tests/Brunich/enemy_slowbeam.tscn")
 const ENEMY_AI_CORE_SCENE := preload("res://scenes/tests/Brunich/enemy_ai_core.tscn")
+const NARRATIVE_OVERLAY_SCRIPT := preload("res://scenes/tests/Brunich/narrative_overlay.gd")
 const ENEMY_SCENES := [
 	ENEMY_REGULATED_SCENE,
 	ENEMY_SPREAD_SCENE,
@@ -80,12 +81,23 @@ const HUD_BAR_INSET := Vector2(32.0, 2.0)
 const HUD_VALUE_GAP := 10.0
 const HUD_VALUE_WIDTH := 96.0
 const HUD_VALUE_DIGITS := 3
+const ROOM_CLI_PANEL_SIZE := Vector2(194.0, 28.0)
+const ROOM_CLI_MARGIN := Vector2(18.0, 18.0)
+const ROOM_CLI_PREFIX := "room::"
+const ROOM_CLI_NUMBER_DIGITS := 2
+const ROOM_CLI_ANIM_STEP := 0.042
+const ROOM_CLI_CURSOR_PERIOD := 0.18
 const HUD_FONT_NAMES := [
 	"Terminal",
 	"Lucida Console",
 	"Consolas",
 	"Courier New",
 ]
+enum RoomCliAnimState {
+	IDLE,
+	ERASE,
+	TYPE,
+}
 
 var DisableSceneReloadForTests := false
 var RestartWasRequested := false
@@ -94,7 +106,7 @@ var CurrentRoomIndex := 0
 var CurrentBiomeIndex := 1
 var CurrentBiomeRoomNumber := 1
 
-var _narrative: NarrativeOverlay
+var _narrative
 var _biome_prev := 1
 var CurrentLayoutId: StringName = &"classic"
 var IsBossRoom := false
@@ -116,7 +128,19 @@ var _health_label: Label = null
 var _mana_label: Label = null
 var _health_value_label: Label = null
 var _mana_value_label: Label = null
+var _room_cli: Control = null
+var _room_cli_bg: ColorRect = null
+var _room_cli_line: ColorRect = null
+var _room_cli_label: Label = null
+var _room_cli_text := ""
+var _room_cli_target_text := ""
+var _room_cli_anim_state: RoomCliAnimState = RoomCliAnimState.IDLE
+var _room_cli_anim_timer := 0.0
+var _room_cli_cursor_timer := 0.0
 var _rng := RandomNumberGenerator.new()
+
+func _get_save_manager() -> Node:
+	return get_node_or_null("/root/SaveManager")
 
 func _ready() -> void:
 	_rng.randomize()
@@ -132,7 +156,7 @@ func _ready() -> void:
 	_build_hud()
 
 	# Narrative overlay for in-run moments
-	_narrative = NarrativeOverlay.new()
+	_narrative = NARRATIVE_OVERLAY_SCRIPT.new()
 	add_child(_narrative)
 	_biome_prev = CurrentBiomeIndex
 
@@ -148,6 +172,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_teleport_cooldown = maxf(_teleport_cooldown - delta, 0.0)
 	_update_interaction_prompt()
+	_update_room_cli(delta)
 	_update_hud_bars()
 	if InputMap.has_action("steal") and Input.is_action_just_pressed("steal"):
 		_try_context_action()
@@ -172,7 +197,9 @@ func _handle_player_died() -> void:
 	RestartWasRequested = true
 	if DisableSceneReloadForTests:
 		return
-	SaveManager.update_biome_reached(CurrentBiomeIndex)
+	var save_mgr := _get_save_manager()
+	if save_mgr != null:
+		save_mgr.update_biome_reached(CurrentBiomeIndex)
 	call_deferred("_go_to_rest_zone")
 
 func _go_to_rest_zone() -> void:
@@ -212,7 +239,9 @@ func _advance_room() -> void:
 		CurrentBiomeIndex += 1
 		CurrentBiomeRoomNumber = 1
 		biome_changed = true
-		SaveManager.update_biome_reached(CurrentBiomeIndex)
+		var save_mgr := _get_save_manager()
+		if save_mgr != null:
+			save_mgr.update_biome_reached(CurrentBiomeIndex)
 	else:
 		CurrentBiomeRoomNumber += 1
 	_enter_current_room()
@@ -268,6 +297,7 @@ func _enter_current_room(is_forced_refresh: bool = false) -> void:
 	if _player != null:
 		_player.global_position = PLAYER_SPAWN
 	_spawn_enemy_wave_for_current_room()
+	_update_room_cli_target(not is_forced_refresh)
 	_clear_prompt()
 
 func _choose_layout_id(is_forced_refresh: bool) -> StringName:
@@ -460,10 +490,7 @@ func _build_command_prompt() -> void:
 	_prompt_root.add_child(_prompt_bg)
 
 	_prompt_label = Label.new()
-	var settings := LabelSettings.new()
-	settings.font_size = 13
-	settings.font_color = Color(0.72, 1.0, 0.94, 1.0)
-	_prompt_label.label_settings = settings
+	_prompt_label.label_settings = _create_terminal_label_settings(Color(0.72, 1.0, 0.94, 1.0), 13, 1)
 	_prompt_label.position = Vector2(-116, -11)
 	_prompt_label.size = Vector2(232, 22)
 	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -532,19 +559,20 @@ func _build_hud() -> void:
 
 	_hud_root = Control.new()
 	_hud_root.name = "hud_root"
-	_hud_root.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_hud_root.position = HUD_MARGIN
+	_hud_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud_layer.add_child(_hud_root)
 
-	var health_bar := _create_hud_bar("HP", Vector2.ZERO, HUD_HEALTH_COLOR)
+	var health_bar := _create_hud_bar("HP", HUD_MARGIN, HUD_HEALTH_COLOR)
 	_health_fill = health_bar["fill"] as ColorRect
 	_health_label = health_bar["label"] as Label
 	_health_value_label = health_bar["value_label"] as Label
 
-	var mana_bar := _create_hud_bar("CY", Vector2(0.0, HUD_BAR_SIZE.y + HUD_BAR_GAP), HUD_MANA_COLOR)
+	var mana_bar := _create_hud_bar("CY", HUD_MARGIN + Vector2(0.0, HUD_BAR_SIZE.y + HUD_BAR_GAP), HUD_MANA_COLOR)
 	_mana_fill = mana_bar["fill"] as ColorRect
 	_mana_label = mana_bar["label"] as Label
 	_mana_value_label = mana_bar["value_label"] as Label
+	_build_room_cli()
 
 func _create_hud_bar(label_text: String, local_position: Vector2, fill_color: Color) -> Dictionary:
 	var container := Control.new()
@@ -555,7 +583,7 @@ func _create_hud_bar(label_text: String, local_position: Vector2, fill_color: Co
 
 	var label := Label.new()
 	label.name = "%s_label" % label_text.to_lower()
-	label.label_settings = _create_hud_label_settings(HUD_TEXT_COLOR, 11, 1)
+	label.label_settings = _create_terminal_label_settings(HUD_TEXT_COLOR, 11, 1)
 	label.text = label_text
 	label.position = Vector2(0.0, -1.0)
 	label.size = Vector2(HUD_BAR_LABEL_WIDTH, HUD_BAR_SIZE.y + 2.0)
@@ -585,7 +613,7 @@ func _create_hud_bar(label_text: String, local_position: Vector2, fill_color: Co
 
 	var value_label := Label.new()
 	value_label.name = "%s_value" % label_text.to_lower()
-	value_label.label_settings = _create_hud_label_settings(HUD_TEXT_COLOR, 11, 1)
+	value_label.label_settings = _create_terminal_label_settings(HUD_TEXT_COLOR, 11, 1)
 	value_label.position = Vector2(background.position.x + HUD_BAR_SIZE.x + HUD_VALUE_GAP, -1.0)
 	value_label.size = Vector2(HUD_VALUE_WIDTH, HUD_BAR_SIZE.y + 2.0)
 	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -600,7 +628,49 @@ func _create_hud_bar(label_text: String, local_position: Vector2, fill_color: Co
 		"value_label": value_label,
 	}
 
-func _create_hud_label_settings(font_color: Color, font_size: int, outline_size: int) -> LabelSettings:
+func _build_room_cli() -> void:
+	_room_cli = Control.new()
+	_room_cli.name = "room_cli"
+	_room_cli.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_room_cli.anchor_left = 1.0
+	_room_cli.anchor_right = 1.0
+	_room_cli.offset_left = -ROOM_CLI_PANEL_SIZE.x - ROOM_CLI_MARGIN.x
+	_room_cli.offset_right = -ROOM_CLI_MARGIN.x
+	_room_cli.offset_top = ROOM_CLI_MARGIN.y
+	_room_cli.offset_bottom = ROOM_CLI_MARGIN.y + ROOM_CLI_PANEL_SIZE.y
+	_hud_root.add_child(_room_cli)
+
+	_room_cli_bg = ColorRect.new()
+	_room_cli_bg.name = "room_cli_bg"
+	_room_cli_bg.color = Color(0.04, 0.08, 0.15, 0.82)
+	_room_cli_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_room_cli.add_child(_room_cli_bg)
+
+	_room_cli_line = ColorRect.new()
+	_room_cli_line.name = "room_cli_line"
+	_room_cli_line.color = Color(0.18, 0.34, 0.58, 0.46)
+	_room_cli_line.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_room_cli_line.offset_top = 0.0
+	_room_cli_line.offset_bottom = 1.0
+	_room_cli_bg.add_child(_room_cli_line)
+
+	_room_cli_label = Label.new()
+	_room_cli_label.name = "room_cli_label"
+	_room_cli_label.label_settings = _create_terminal_label_settings(Color(0.72, 1.0, 0.94, 1.0), 13, 1)
+	_room_cli_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_room_cli_label.offset_left = 10.0
+	_room_cli_label.offset_right = -10.0
+	_room_cli_label.offset_top = 2.0
+	_room_cli_label.offset_bottom = -2.0
+	_room_cli_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_room_cli_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_room_cli.add_child(_room_cli_label)
+
+	_room_cli_text = _format_room_cli_target()
+	_room_cli_target_text = _room_cli_text
+	_render_room_cli()
+
+func _create_terminal_label_settings(font_color: Color, font_size: int, outline_size: int) -> LabelSettings:
 	var settings := LabelSettings.new()
 	var font := SystemFont.new()
 	font.font_names = PackedStringArray(HUD_FONT_NAMES)
@@ -611,6 +681,72 @@ func _create_hud_label_settings(font_color: Color, font_size: int, outline_size:
 	settings.outline_size = outline_size
 	settings.outline_color = HUD_TEXT_OUTLINE
 	return settings
+
+func _format_room_cli_target() -> String:
+	return "%s%s/%s" % [
+		ROOM_CLI_PREFIX,
+		str(CurrentBiomeRoomNumber).lpad(ROOM_CLI_NUMBER_DIGITS, "0"),
+		str(BIOME_ROOM_COUNT).lpad(ROOM_CLI_NUMBER_DIGITS, "0"),
+	]
+
+func _update_room_cli_target(animate: bool) -> void:
+	_room_cli_target_text = _format_room_cli_target()
+	if not animate or _room_cli_text.is_empty():
+		_room_cli_text = _room_cli_target_text
+		_room_cli_anim_state = RoomCliAnimState.IDLE
+		_room_cli_anim_timer = 0.0
+		_render_room_cli()
+		return
+	if _room_cli_text == _room_cli_target_text and _room_cli_anim_state == RoomCliAnimState.IDLE:
+		_render_room_cli()
+		return
+	_room_cli_anim_state = RoomCliAnimState.ERASE
+	_room_cli_anim_timer = 0.0
+	_render_room_cli()
+
+func _update_room_cli(delta: float) -> void:
+	if _room_cli_label == null:
+		return
+	var anim_delta := maxf(delta, 1.0 / 60.0)
+	_room_cli_cursor_timer = fmod(_room_cli_cursor_timer + anim_delta, ROOM_CLI_CURSOR_PERIOD * 2.0)
+	if _room_cli_anim_state != RoomCliAnimState.IDLE:
+		_room_cli_anim_timer += anim_delta
+		while _room_cli_anim_timer >= ROOM_CLI_ANIM_STEP:
+			_room_cli_anim_timer -= ROOM_CLI_ANIM_STEP
+			match _room_cli_anim_state:
+				RoomCliAnimState.ERASE:
+					if _room_cli_text.length() > ROOM_CLI_PREFIX.length():
+						_room_cli_text = _room_cli_text.substr(0, _room_cli_text.length() - 1)
+					else:
+						_room_cli_anim_state = RoomCliAnimState.TYPE
+				RoomCliAnimState.TYPE:
+					if _room_cli_text.length() < _room_cli_target_text.length():
+						_room_cli_text = _room_cli_target_text.substr(0, _room_cli_text.length() + 1)
+					else:
+						_room_cli_text = _room_cli_target_text
+						_room_cli_anim_state = RoomCliAnimState.IDLE
+	_render_room_cli()
+
+func _render_room_cli() -> void:
+	if _room_cli_label == null:
+		return
+	var cursor := "_" if _room_cli_cursor_timer < ROOM_CLI_CURSOR_PERIOD else " "
+	_room_cli_label.text = "%s%s" % [_room_cli_text, cursor]
+	if _room_cli_bg != null:
+		var pulse := sin(float(Time.get_ticks_msec()) * 0.008) * 0.5 + 0.5
+		var active_glow := 0.0 if _room_cli_anim_state == RoomCliAnimState.IDLE else 0.10
+		_room_cli_bg.color = Color(0.04, 0.08, 0.15, 0.76 + pulse * 0.04 + active_glow)
+	if _room_cli_line != null:
+		_room_cli_line.color = Color(0.18, 0.34, 0.58, 0.42 if _room_cli_anim_state == RoomCliAnimState.IDLE else 0.64)
+
+func debug_get_room_cli_text() -> String:
+	return _room_cli_text
+
+func debug_get_room_cli_target_text() -> String:
+	return _room_cli_target_text
+
+func debug_is_room_cli_animating() -> bool:
+	return _room_cli_anim_state != RoomCliAnimState.IDLE
 
 func _handle_player_health_changed(_health: int, _old_health: int) -> void:
 	_update_hud_bars()
@@ -658,11 +794,12 @@ func _format_hud_counter(current_value: float, max_value: float) -> String:
 func _apply_upgrades_to_player() -> void:
 	if _player == null:
 		return
-	var u: Dictionary = SaveManager.get_upgrades()
+	var save_mgr := _get_save_manager()
+	var u: Dictionary = save_mgr.get_upgrades() if save_mgr != null else {}
 	# HP
 	var hp_bonus := int(u.get("max_hp_bonus", 0))
 	if hp_bonus > 0 and _player.HealthComp != null:
-		var new_max := _player.HealthComp.get_max_health() + hp_bonus
+		var new_max: int = _player.HealthComp.get_max_health() + hp_bonus
 		_player.HealthComp.set_max_health(new_max)
 		_player.HealthComp.set_health(new_max)
 	# Ciclos
@@ -691,15 +828,7 @@ func _play_biome_transition(biome_index: int) -> void:
 	canvas.add_child(bg)
 
 	var name_lbl := Label.new()
-	var ls := LabelSettings.new()
-	var fnt := SystemFont.new()
-	fnt.font_names = PackedStringArray(HUD_FONT_NAMES)
-	fnt.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	ls.font = fnt
-	ls.font_size = 22
-	ls.font_color = Color(0.70, 0.50, 1.00, 0.0)
-	ls.outline_size = 1
-	ls.outline_color = Color(0.01, 0.01, 0.02, 0.9)
+	var ls := _create_terminal_label_settings(Color(0.70, 0.50, 1.00, 0.0), 22, 1)
 	name_lbl.label_settings = ls
 	name_lbl.text = _get_biome_name(biome_index)
 	name_lbl.set_anchors_preset(Control.PRESET_CENTER)
@@ -731,7 +860,8 @@ func _get_biome_name(biome_index: int) -> String:
 func _play_biome_entry_monologue(biome_index: int, is_first: bool) -> void:
 	if _narrative == null:
 		return
-	var run := SaveManager.get_run_count()
+	var save_mgr := _get_save_manager()
+	var run: int = save_mgr.get_run_count() if save_mgr != null else 0
 	var line := ""
 	match biome_index:
 		1:

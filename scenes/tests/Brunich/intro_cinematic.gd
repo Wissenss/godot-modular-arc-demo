@@ -12,9 +12,10 @@ const BAR_GLITCH_COLOR := Color(1.00, 0.22, 0.08, 0.90)
 const SCENE_CENTER := Vector2(640.0, 320.0)
 const BAR_COUNT := 6
 const BAR_RADIUS := 70.0
+const NARRATIVE_OVERLAY_SCRIPT := preload("res://scenes/tests/Brunich/narrative_overlay.gd")
 
 var _layer: CanvasLayer
-var _overlay: NarrativeOverlay
+var _overlay
 var _mc_poly: Polygon2D
 var _mc_glow: Polygon2D
 var _warden_poly: Polygon2D
@@ -29,6 +30,9 @@ var _bars_dissolve := 0.0
 var _scene_done := false
 var _glitch_t := 0.0
 var _pulse_t := 0.0
+
+func _get_save_manager() -> Node:
+	return get_node_or_null("/root/SaveManager")
 
 func _ready() -> void:
 	_layer = CanvasLayer.new()
@@ -45,7 +49,7 @@ func _ready() -> void:
 	_build_warden()
 	_build_ciclos_hud(root)
 
-	_overlay = NarrativeOverlay.new()
+	_overlay = NARRATIVE_OVERLAY_SCRIPT.new()
 	add_child(_overlay)
 	_overlay.on_sequence_complete.connect(_on_sequence_done)
 	_overlay.on_line_complete.connect(_on_line_complete)
@@ -210,7 +214,9 @@ func _on_sequence_done() -> void:
 	if _scene_done:
 		return
 	_scene_done = true
-	SaveManager.mark_intro_played()
+	var save_mgr := _get_save_manager()
+	if save_mgr != null:
+		save_mgr.mark_intro_played()
 	# Fade to black then go to rest zone
 	var fade := ColorRect.new()
 	fade.color = Color(0.0, 0.0, 0.0, 0.0)

@@ -19,8 +19,9 @@ const EYE_H := 4.0
 const BADGE_W := 10.0
 const BADGE_H := 5.0
 const FONT_NAMES := ["Lucida Console", "Consolas", "Courier New", "Terminal"]
+const NARRATIVE_OVERLAY_SCRIPT := preload("res://scenes/tests/Brunich/narrative_overlay.gd")
 
-var _overlay: NarrativeOverlay
+var _overlay
 var _interact_hint: Label
 var _dialogue_index := 0
 var _body_poly: Polygon2D
@@ -32,7 +33,7 @@ var _idle_t := 0.0
 func _ready() -> void:
 	_build_visuals()
 	_build_interact_hint()
-	_overlay = NarrativeOverlay.new()
+	_overlay = NARRATIVE_OVERLAY_SCRIPT.new()
 	add_child(_overlay)
 
 func _build_visuals() -> void:

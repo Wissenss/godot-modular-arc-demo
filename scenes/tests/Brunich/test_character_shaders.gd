@@ -10,6 +10,7 @@ const DASH_RECHARGE_SECOND := 0.24
 const MAX_DASH_CHARGES := 2
 const FACE_DATA_PATH := "res://art/generated/brunich/mc_face_expressions.json"
 const SCANLINE_SHADER := preload("res://scenes/tests/Brunich/scanline_shader.gdshader")
+const NARRATIVE_OVERLAY_SCRIPT := preload("res://scenes/tests/Brunich/narrative_overlay.gd")
 const SCREEN_FRAME_IDLE := Color(0.07, 0.09, 0.16, 0.96)
 const SCREEN_FRAME_ACTIVE := Color(0.12, 0.12, 0.22, 0.98)
 const SCREEN_SHELL_IDLE := Color(0.03, 0.05, 0.10, 0.98)
@@ -105,14 +106,14 @@ var _hack_popup_timer := 0.0
 var Ciclos := MAX_CICLOS * 0.5      # start at 50 ciclos
 var _slow_timer := 0.0
 var _slow_factor := 0.0
-var _hackeo_overlay: NarrativeOverlay
+var _hackeo_overlay
 var _hackeo_rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	add_to_group("player")
 	_ensure_input_actions()
 	_hackeo_rng.randomize()
-	_hackeo_overlay = NarrativeOverlay.new()
+	_hackeo_overlay = NARRATIVE_OVERLAY_SCRIPT.new()
 	add_child(_hackeo_overlay)
 
 	self.ControllerComp = $controller_comp

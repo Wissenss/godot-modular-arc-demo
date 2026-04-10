@@ -37,7 +37,7 @@ func get_slot_preview(slot: int) -> Dictionary:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return {}
-	var parsed := JSON.parse_string(file.get_as_text())
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
 	return parsed if parsed is Dictionary else {}
 
@@ -45,7 +45,7 @@ func load_slot(slot: int) -> void:
 	active_slot = slot
 	data = DEFAULT_DATA.duplicate(true)
 	data["upgrades"] = DEFAULT_UPGRADES.duplicate(true)
-	var preview := get_slot_preview(slot)
+	var preview: Dictionary = get_slot_preview(slot)
 	if preview.is_empty():
 		return
 	for key in preview:
@@ -125,7 +125,7 @@ func spend_resources(amount: int) -> bool:
 # ── Upgrades ─────────────────────────────────────────────────────────────────
 
 func get_upgrades() -> Dictionary:
-	var u = data.get("upgrades", {})
+	var u: Variant = data.get("upgrades", {})
 	return u if u is Dictionary else DEFAULT_UPGRADES.duplicate(true)
 
 func apply_upgrade(upgrade_id: String) -> void:

@@ -23,10 +23,15 @@ const VIEWPORT_H := 640.0
 
 var _layer: CanvasLayer
 var _slot_panels: Array[Control] = []
-var _slot_borders: Array[Array] = []   # Array of 4 ColorRect per slot
+var _slot_borders: Array[Array] = []
+# Stored at build time — absolute viewport coords, no runtime .position query needed
+var _slot_rects: Array[Rect2] = []
+var _del_rects: Array[Rect2] = []   # invalid Rect2 means no delete button for that slot
 var _confirm_delete := -1
 var _del_labels: Array[Label] = []
-var _hovered := -1
+
+func _get_save_manager() -> Node:
+	return get_node_or_null("/root/SaveManager")
 
 func _ready() -> void:
 	_layer = CanvasLayer.new()
@@ -47,7 +52,6 @@ func _build_bg(root: Control) -> void:
 	bg.color = COLOR_BG
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(bg)
-	# Subtle scanlines
 	for i in range(0, int(VIEWPORT_H), 4):
 		var sl := ColorRect.new()
 		sl.color = Color(0.0, 0.0, 0.0, 0.05)
@@ -80,9 +84,12 @@ func _build_slots(root: Control) -> void:
 func _build_slot_panel(root: Control, idx: int, x: float, y: float) -> void:
 	var panel := Control.new()
 	panel.position = Vector2(x, y)
-	panel.custom_minimum_size = Vector2(SLOT_W, SLOT_H)
+	panel.size = Vector2(SLOT_W, SLOT_H)
 	root.add_child(panel)
 	_slot_panels.append(panel)
+
+	# Store absolute rect for reliable hit testing (avoids CanvasLayer coord ambiguity)
+	_slot_rects.append(Rect2(x, y, SLOT_W, SLOT_H))
 
 	var bg := ColorRect.new()
 	bg.name = "bg"
@@ -106,8 +113,9 @@ func _build_slot_panel(root: Control, idx: int, x: float, y: float) -> void:
 		borders.append(b)
 	_slot_borders.append(borders)
 
-	var preview := SaveManager.get_slot_preview(idx)
-	var has_save := not preview.is_empty()
+	var save_mgr := _get_save_manager()
+	var preview: Dictionary = save_mgr.get_slot_preview(idx) if save_mgr != null else {}
+	var has_save: bool = not preview.is_empty()
 
 	var header := _mk_lbl("SLOT %02d" % (idx + 1), 10, COLOR_DIM)
 	header.position = Vector2(14, 10)
@@ -145,6 +153,7 @@ func _build_slot_panel(root: Control, idx: int, x: float, y: float) -> void:
 		del_lbl.size = Vector2(78, 16)
 		panel.add_child(del_lbl)
 		_del_labels.append(del_lbl)
+		_del_rects.append(Rect2(x + SLOT_W - 90, y + 120, 78, 18))
 	else:
 		var empty := _mk_lbl("[ NUEVO JUEGO ]", 14, COLOR_TEXT)
 		empty.position = Vector2(14, 56)
@@ -152,6 +161,7 @@ func _build_slot_panel(root: Control, idx: int, x: float, y: float) -> void:
 		panel.add_child(empty)
 
 		_del_labels.append(null)
+		_del_rects.append(Rect2())  # empty = no delete button
 
 func _build_footer(root: Control) -> void:
 	var lbl := _mk_lbl("AI ROGUE · desarrollo activo · build interna", 9, COLOR_DIM)
@@ -161,49 +171,44 @@ func _build_footer(root: Control) -> void:
 
 func _process(_delta: float) -> void:
 	var mouse := get_viewport().get_mouse_position()
-	_hovered = -1
 	for i in range(_slot_panels.size()):
-		var panel := _slot_panels[i]
-		var rect := Rect2(panel.position, Vector2(SLOT_W, SLOT_H))
-		var bg := panel.get_node_or_null("bg") as ColorRect
+		var bg := _slot_panels[i].get_node_or_null("bg") as ColorRect
 		if bg == null:
 			continue
-		if rect.has_point(mouse):
-			_hovered = i
-			bg.color = COLOR_PANEL_HOVER
-			for b in _slot_borders[i]:
-				(b as ColorRect).color = COLOR_BORDER_HOV
-		else:
-			bg.color = COLOR_PANEL
-			for b in _slot_borders[i]:
-				(b as ColorRect).color = COLOR_BORDER
+		var hovering := _slot_rects[i].has_point(mouse)
+		bg.color = COLOR_PANEL_HOVER if hovering else COLOR_PANEL
+		for b in _slot_borders[i]:
+			(b as ColorRect).color = COLOR_BORDER_HOV if hovering else COLOR_BORDER
 
 func _input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton and event.pressed):
 		return
 	var mouse := get_viewport().get_mouse_position()
-	for i in range(_slot_panels.size()):
-		var panel := _slot_panels[i]
-		var rect := Rect2(panel.position, Vector2(SLOT_W, SLOT_H))
-		if not rect.has_point(mouse):
+
+	for i in range(_slot_rects.size()):
+		if not _slot_rects[i].has_point(mouse):
 			continue
-		# Check delete button
-		if i < _del_labels.size() and _del_labels[i] != null:
+
+		# Check delete button first (sits inside the slot rect)
+		if _del_rects[i].has_area() and _del_rects[i].has_point(mouse):
 			var del := _del_labels[i] as Label
-			var del_rect := Rect2(panel.position + del.position, Vector2(78, 18))
-			if del_rect.has_point(mouse):
-				if _confirm_delete == i:
-					SaveManager.delete_slot(i)
-					get_tree().reload_current_scene()
-				else:
-					_confirm_delete = i
-					del.text = "[ CONFIRMAR? ]"
-					del.label_settings = _mk_settings(10, COLOR_DEL_CONF)
-				return
-		# Slot selected
+			if _confirm_delete == i:
+				var save_mgr := _get_save_manager()
+				if save_mgr != null:
+					save_mgr.delete_slot(i)
+				get_tree().reload_current_scene()
+			else:
+				_confirm_delete = i
+				del.text = "[ CONFIRMAR? ]"
+				del.label_settings = _mk_settings(10, COLOR_DEL_CONF)
+			return
+
+		# Slot selected — load and route
 		_confirm_delete = -1
-		SaveManager.load_slot(i)
-		if SaveManager.is_first_run():
+		var save_mgr := _get_save_manager()
+		if save_mgr != null:
+			save_mgr.load_slot(i)
+		if save_mgr != null and save_mgr.is_first_run():
 			get_tree().change_scene_to_file("res://scenes/tests/Brunich/intro_cinematic.tscn")
 		else:
 			get_tree().change_scene_to_file("res://scenes/tests/Brunich/rest_zone.tscn")

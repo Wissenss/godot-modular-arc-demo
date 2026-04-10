@@ -4,7 +4,7 @@ extends Node2D
 const BEAM_SCENE := preload("res://scenes/tests/Brunich/enemy_ai_beam.tscn")
 
 var Owner: CharacterBody2D
-var ShootInterval := 0.92
+var ShootInterval := 1.45
 
 var _shoot_timer := 0.0
 var _active_beam: Node2D = null
@@ -66,14 +66,14 @@ func _get_player() -> Node2D:
 func _get_beam_profile() -> Dictionary:
 	return {
 		"charge_duration": 0.72,
-		"active_duration": 1.18,
-		"fade_duration": 0.18,
+		"active_duration": 6.0,
+		"fade_duration": 0.24,
 		"beam_length": 720.0,
 		"warning_width": 16.0,
-		"beam_width": 32.0,
-		"track_speed": 10.8,
-		"damage_tick_interval": 0.10,
-		"damage_per_tick": 8,
+		"beam_width": 34.0,
+		"track_speed": 18.5,
+		"damage_tick_interval": 0.09,
+		"damage_per_tick": 9,
 		"origin_offset": 28.0,
 		"warning_color": Color(0.74, 0.94, 1.0, 0.46),
 		"beam_outer_color": Color(0.50, 0.86, 1.0, 0.92),
