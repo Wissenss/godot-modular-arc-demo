@@ -18,6 +18,11 @@ func _run() -> void:
 	root.add_child(world)
 
 	await _wait_frames(4)
+	var narrative: Variant = world.get("_narrative")
+	if narrative != null and narrative.has_method("stop"):
+		narrative.stop()
+	paused = false
+	await _wait_frames(1)
 
 	var player := world.get_node("MC") as Node2D
 	var hud_layer := world.get_node_or_null("hud_layer") as CanvasLayer
@@ -35,6 +40,8 @@ func _run() -> void:
 		_expect(room_cli.anchor_left >= 0.99 and room_cli.anchor_right >= 0.99, "el room CLI debe estar anclado al borde derecho")
 	if room_label != null:
 		_expect(room_label.horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT, "el room CLI debe alinearse como terminal hacia la derecha")
+		if world.has_method("debug_get_room_cli_text"):
+			_expect(room_label.text == String(world.debug_get_room_cli_text()), "el label del room CLI no debe incrustar el cursor dentro del texto")
 
 	if world.has_method("debug_get_room_cli_text"):
 		_expect(String(world.debug_get_room_cli_text()) == "room::01/10", "el primer cuarto debe mostrarse de inmediato en el room CLI")

@@ -90,7 +90,7 @@ func _run() -> void:
 		_expect(player.get_current_face_expression() == "scan", "al robar %s el MC debe entrar a scan" % spec.attack_id)
 		_expect(float(player.get("_face_override_timer")) >= 5.9, "scan debe durar cerca de 6 segundos al cambiar al arma %s" % spec.attack_id)
 		_expect(player.Weapon.get_current_attack_id() == String(spec.attack_id), "el arma robada debe conservar el id %s" % spec.attack_id)
-		_expect(is_equal_approx(float(player.Weapon.get("_current_shoot_cooldown")), float(profile.get("shoot_cooldown", 0.0)) * 1.25), "al robar %s el cooldown real debe respetar la bajada global de cadencia del MC" % spec.attack_id)
+		_expect(is_equal_approx(float(player.Weapon.get("_current_shoot_cooldown")), float(profile.get("shoot_cooldown", 0.0))), "al robar %s el cooldown real debe igualar la misma cadencia del enemigo" % spec.attack_id)
 		_expect(player.HealthComp.get_health() == player_max_health - 30, "robar %s debe curar 25%% de la vida maxima del MC" % spec.attack_id)
 
 		player.Weapon._shoot(Vector2.RIGHT)

@@ -18,7 +18,7 @@ const EYE_W := 16.0
 const EYE_H := 4.0
 const BADGE_W := 10.0
 const BADGE_H := 5.0
-const FONT_NAMES := ["Lucida Console", "Consolas", "Courier New", "Terminal"]
+const FONT_NAMES := ["Terminal"]
 const NARRATIVE_OVERLAY_SCRIPT := preload("res://scenes/tests/Brunich/narrative_overlay.gd")
 
 var _overlay
@@ -113,6 +113,8 @@ func _build_interact_hint() -> void:
 	var fnt := SystemFont.new()
 	fnt.font_names = PackedStringArray(FONT_NAMES)
 	fnt.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	fnt.hinting = TextServer.HINTING_NONE
+	fnt.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	ls.font = fnt
 	ls.font_size = 10
 	ls.font_color = Color(0.46, 0.60, 0.76, 0.70)

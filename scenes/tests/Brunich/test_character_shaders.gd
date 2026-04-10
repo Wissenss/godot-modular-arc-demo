@@ -9,6 +9,7 @@ const DASH_RECHARGE_DURATION := 1.0
 const MAX_DASH_CHARGES := 1
 const FACE_DATA_PATH := "res://art/generated/brunich/mc_face_expressions.json"
 const SCANLINE_SHADER := preload("res://scenes/tests/Brunich/scanline_shader.gdshader")
+const ACCELERATED_THOUGHT_SHADER := preload("res://scenes/tests/Brunich/accelerated_thought_overlay.gdshader")
 const NARRATIVE_OVERLAY_SCRIPT := preload("res://scenes/tests/Brunich/narrative_overlay.gd")
 const SCREEN_FRAME_IDLE := Color(0.07, 0.09, 0.16, 0.96)
 const SCREEN_FRAME_ACTIVE := Color(0.12, 0.12, 0.22, 0.98)
@@ -39,10 +40,15 @@ const SCREEN_BLUR_BASE_SCALE := 0.860
 const FACE_ROOT_SCALE := 0.904
 const PARTICLE_SPEED_MULTIPLIER := 0.5
 const PARTICLE_LIFETIME_MULTIPLIER := 1.45
-const TERMINAL_FONT_NAMES := ["Terminal", "Lucida Console", "Consolas", "Courier New"]
+const TERMINAL_FONT_NAMES := ["Terminal"]
 const HACK_POPUP_MIN_WIDTH := 120.0
 const HACK_POPUP_PADDING_X := 12.0
 const HACK_POPUP_HEIGHT := 24.0
+const ACCELERATED_THOUGHT_MAX_CHARGE := 1.3
+const ACCELERATED_THOUGHT_RECHARGE_TIME := 2.0
+const ACCELERATED_THOUGHT_TIME_SCALE := 0.42
+const ACCELERATED_THOUGHT_BLEND_IN_SPEED := 8.6
+const ACCELERATED_THOUGHT_BLEND_OUT_SPEED := 5.4
 
 # --- Ciclos (processing capacity used for hackeo) ---
 var MAX_CICLOS := 100.0              # var so upgrades can increase it
@@ -84,6 +90,9 @@ var HealParticles: CPUParticles2D
 var HealSparkParticles: CPUParticles2D
 var HealCrownBack: Node2D
 var HealCrownFront: Node2D
+var AcceleratedThoughtLayer: CanvasLayer
+var AcceleratedThoughtRoot: Control
+var AcceleratedThoughtFilter: ColorRect
 var DashCharges := MAX_DASH_CHARGES
 
 var _glitch_timer := 0.0
@@ -112,11 +121,16 @@ var _slow_factor := 0.0
 var _hackeo_overlay
 var _hackeo_rng := RandomNumberGenerator.new()
 var DashRechargeMultiplier := 1.0
+var _accelerated_thought_active := false
+var _accelerated_thought_visual_strength := 0.0
+var _accelerated_thought_charge := ACCELERATED_THOUGHT_MAX_CHARGE
+var _real_time_prev := 0.0
 
 func _ready() -> void:
 	add_to_group("player")
 	_ensure_input_actions()
 	_hackeo_rng.randomize()
+	_real_time_prev = _get_real_time_seconds()
 	_hackeo_overlay = NARRATIVE_OVERLAY_SCRIPT.new()
 	add_child(_hackeo_overlay)
 
@@ -162,6 +176,7 @@ func _ready() -> void:
 	_load_face_catalog()
 	_build_face_pixel_pool()
 	_build_hack_popup()
+	_build_accelerated_thought_overlay()
 	self.BodyParticlesDark.emitting = true
 	self.BodyParticlesBright.emitting = true
 	_apply_face("angry")
@@ -171,31 +186,39 @@ func _ready() -> void:
 	self.GlitchPolygon.visible = false
 
 func _process(delta: float) -> void:
+	var real_now := _get_real_time_seconds()
+	var real_delta := maxf(real_now - _real_time_prev, 0.0)
+	_real_time_prev = real_now
+	var thought_pressed := self.ControllerComp.has_method("_is_accelerated_thought_pressed") and self.ControllerComp._is_accelerated_thought_pressed()
+	_update_accelerated_thought_state(real_delta, thought_pressed)
+	var input_locked := _is_narrative_input_locked()
+
 	if _has_effect_component("KnockbackEffectComponent") or _has_effect_component("FrozenEffectComponent"):
 		self.ConstantVelocityComp.Direction = Vector2.ZERO
 	else:
 		self.ConstantVelocityComp.Direction = self.ControllerComp._get_move_direction()
 
 	var aim_dir := _get_world_aim_dir()
-	var is_attacking := self.ControllerComp._is_attack_pressed() and aim_dir != Vector2.ZERO
+	var is_attacking := not input_locked and self.ControllerComp._is_attack_pressed() and aim_dir != Vector2.ZERO
 	if is_attacking:
 		self.Weapon._shoot(aim_dir)
 
-	if self.ControllerComp._is_dash_pressed():
+	if not input_locked and self.ControllerComp._is_dash_pressed():
 		var dash_dir := self.ConstantVelocityComp.Direction if self.ConstantVelocityComp.Direction != Vector2.ZERO else aim_dir
 		request_dash(dash_dir)
 
-	if self.ControllerComp.has_method("_is_steal_pressed") and self.ControllerComp._is_steal_pressed():
+	if not input_locked and self.ControllerComp.has_method("_is_steal_pressed") and self.ControllerComp._is_steal_pressed():
 		try_steal_attack()
 
 	_update_hack_popup(delta)
 	_update_visual_state(delta, is_attacking)
+	_update_accelerated_thought_overlay(real_delta, real_now)
 
 	# Ciclos passive regen
 	Ciclos = minf(Ciclos + CICLOS_REGEN_RATE * delta, MAX_CICLOS)
 
 	# Hackeo action (H key)
-	if InputMap.has_action("hackeo") and Input.is_action_just_pressed("hackeo"):
+	if not input_locked and InputMap.has_action("hackeo") and Input.is_action_just_pressed("hackeo"):
 		try_hackeo()
 
 func _physics_process(delta: float) -> void:
@@ -248,11 +271,15 @@ func _handle_on_hit(by: Area2D) -> void:
 		_trigger_glitch_flash()
 
 func _handle_on_died() -> void:
+	_clear_accelerated_thought(true)
 	self.BodyParticles.emitting = false
 	self.TrailParticles.emitting = false
 	self.BodyParticlesDark.emitting = false
 	self.BodyParticlesBright.emitting = false
 	self.queue_free()
+
+func _exit_tree() -> void:
+	_clear_accelerated_thought(true)
 
 func _update_visual_state(delta: float, is_attacking: bool) -> void:
 	var is_moving := self.ConstantVelocityComp.Direction != Vector2.ZERO or _dash_timer > 0.0
@@ -382,6 +409,8 @@ func _ensure_input_actions() -> void:
 		InputMap.add_action("steal")
 	if not InputMap.has_action("hackeo"):
 		InputMap.add_action("hackeo")
+	if not InputMap.has_action("accelerated_thought"):
+		InputMap.add_action("accelerated_thought")
 
 	if not _action_has_mouse_button("attack", MOUSE_BUTTON_LEFT):
 		var attack_event := InputEventMouseButton.new()
@@ -402,6 +431,10 @@ func _ensure_input_actions() -> void:
 		var hackeo_event := InputEventKey.new()
 		hackeo_event.physical_keycode = KEY_H
 		InputMap.action_add_event("hackeo", hackeo_event)
+	if not _action_has_mouse_button("accelerated_thought", MOUSE_BUTTON_RIGHT):
+		var accelerated_thought_event := InputEventMouseButton.new()
+		accelerated_thought_event.button_index = MOUSE_BUTTON_RIGHT
+		InputMap.action_add_event("accelerated_thought", accelerated_thought_event)
 
 func _action_has_mouse_button(action: StringName, button: MouseButton) -> bool:
 	for event in InputMap.action_get_events(action):
@@ -438,6 +471,119 @@ func _update_dash_recharge(delta: float) -> void:
 	DashCharges += 1
 	if DashCharges < MAX_DASH_CHARGES:
 		_dash_recharge_timer = _get_dash_recharge_duration()
+
+func try_activate_accelerated_thought() -> bool:
+	if _accelerated_thought_active:
+		return false
+	if _accelerated_thought_charge <= 0.01:
+		return false
+	_set_accelerated_thought_active(true)
+	return true
+
+func is_accelerated_thought_active() -> bool:
+	return _accelerated_thought_active
+
+func get_accelerated_thought_cooldown_remaining() -> float:
+	return 0.0
+
+func get_accelerated_thought_charge() -> float:
+	return _accelerated_thought_charge
+
+func get_accelerated_thought_max_charge() -> float:
+	return ACCELERATED_THOUGHT_MAX_CHARGE
+
+func get_accelerated_thought_charge_ratio() -> float:
+	return clampf(_accelerated_thought_charge / ACCELERATED_THOUGHT_MAX_CHARGE, 0.0, 1.0)
+
+func _update_accelerated_thought_state(real_delta: float, thought_pressed: bool) -> void:
+	if thought_pressed and _accelerated_thought_charge > 0.01 and not _is_narrative_input_locked():
+		_set_accelerated_thought_active(true)
+	elif _accelerated_thought_active and not thought_pressed:
+		_set_accelerated_thought_active(false)
+
+	if _accelerated_thought_active:
+		_accelerated_thought_charge = maxf(_accelerated_thought_charge - real_delta, 0.0)
+		if _accelerated_thought_charge <= 0.0:
+			_set_accelerated_thought_active(false)
+	else:
+		var recharge_rate := ACCELERATED_THOUGHT_MAX_CHARGE / ACCELERATED_THOUGHT_RECHARGE_TIME
+		_accelerated_thought_charge = minf(_accelerated_thought_charge + real_delta * recharge_rate, ACCELERATED_THOUGHT_MAX_CHARGE)
+
+func _set_accelerated_thought_active(active: bool) -> void:
+	if _accelerated_thought_active == active:
+		return
+	_accelerated_thought_active = active
+	Engine.time_scale = ACCELERATED_THOUGHT_TIME_SCALE if active else 1.0
+	if self.AcceleratedThoughtRoot != null and active:
+		self.AcceleratedThoughtRoot.visible = true
+	if self.AcceleratedThoughtFilter != null and active:
+		self.AcceleratedThoughtFilter.visible = true
+
+func _clear_accelerated_thought(reset_charge: bool) -> void:
+	_set_accelerated_thought_active(false)
+	if reset_charge:
+		_accelerated_thought_charge = ACCELERATED_THOUGHT_MAX_CHARGE
+
+func _build_accelerated_thought_overlay() -> void:
+	self.AcceleratedThoughtLayer = CanvasLayer.new()
+	self.AcceleratedThoughtLayer.name = "accelerated_thought_layer"
+	self.AcceleratedThoughtLayer.layer = 100
+	add_child(self.AcceleratedThoughtLayer)
+
+	self.AcceleratedThoughtRoot = Control.new()
+	self.AcceleratedThoughtRoot.name = "filter_root"
+	self.AcceleratedThoughtRoot.set_anchors_preset(Control.PRESET_FULL_RECT)
+	self.AcceleratedThoughtRoot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	self.AcceleratedThoughtRoot.visible = false
+	self.AcceleratedThoughtLayer.add_child(self.AcceleratedThoughtRoot)
+
+	self.AcceleratedThoughtFilter = ColorRect.new()
+	self.AcceleratedThoughtFilter.name = "filter_rect"
+	self.AcceleratedThoughtFilter.set_anchors_preset(Control.PRESET_FULL_RECT)
+	self.AcceleratedThoughtFilter.color = Color(1.0, 1.0, 1.0, 1.0)
+	self.AcceleratedThoughtFilter.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var material := ShaderMaterial.new()
+	material.shader = ACCELERATED_THOUGHT_SHADER
+	material.set_shader_parameter("strength", 0.0)
+	material.set_shader_parameter("ui_time", _get_real_time_seconds())
+	material.set_shader_parameter("focus_uv", Vector2(0.5, 0.5))
+	self.AcceleratedThoughtFilter.material = material
+	self.AcceleratedThoughtRoot.add_child(self.AcceleratedThoughtFilter)
+
+func _update_accelerated_thought_overlay(real_delta: float, real_now: float) -> void:
+	if self.AcceleratedThoughtRoot == null or self.AcceleratedThoughtFilter == null:
+		return
+	var target_strength := 1.0 if _accelerated_thought_active else 0.0
+	var blend_speed := ACCELERATED_THOUGHT_BLEND_IN_SPEED if target_strength > _accelerated_thought_visual_strength else ACCELERATED_THOUGHT_BLEND_OUT_SPEED
+	_accelerated_thought_visual_strength = move_toward(_accelerated_thought_visual_strength, target_strength, real_delta * blend_speed)
+	self.AcceleratedThoughtRoot.visible = _accelerated_thought_visual_strength > 0.01
+	self.AcceleratedThoughtFilter.visible = _accelerated_thought_visual_strength > 0.01
+	if self.AcceleratedThoughtFilter.material is ShaderMaterial:
+		var material := self.AcceleratedThoughtFilter.material as ShaderMaterial
+		material.set_shader_parameter("strength", _accelerated_thought_visual_strength)
+		material.set_shader_parameter("ui_time", real_now)
+		material.set_shader_parameter("focus_uv", _get_accelerated_thought_focus_uv())
+
+func _is_narrative_input_locked() -> bool:
+	for overlay in get_tree().get_nodes_in_group("narrative_overlay"):
+		if overlay == _hackeo_overlay:
+			continue
+		if overlay.has_method("is_capturing_input") and overlay.is_capturing_input():
+			return true
+	return false
+
+func _get_accelerated_thought_focus_uv() -> Vector2:
+	var viewport_rect := get_viewport().get_visible_rect()
+	if viewport_rect.size == Vector2.ZERO:
+		return Vector2(0.5, 0.5)
+	var screen_pos := get_viewport().get_canvas_transform() * global_position
+	return Vector2(
+		clampf(screen_pos.x / viewport_rect.size.x, 0.0, 1.0),
+		clampf(screen_pos.y / viewport_rect.size.y, 0.0, 1.0)
+	)
+
+func _get_real_time_seconds() -> float:
+	return float(Time.get_ticks_msec()) * 0.001
 
 func _update_screen_visual(delta: float, is_moving: bool, is_attacking: bool) -> void:
 	if _face_override_timer > 0.0:
@@ -731,6 +877,8 @@ func _build_hack_popup() -> void:
 	var font := SystemFont.new()
 	font.font_names = PackedStringArray(TERMINAL_FONT_NAMES)
 	font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	font.hinting = TextServer.HINTING_NONE
+	font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	label_settings.font = font
 	label_settings.font_size = 13
 	label_settings.font_color = Color(0.72, 1.0, 0.94, 1.0)

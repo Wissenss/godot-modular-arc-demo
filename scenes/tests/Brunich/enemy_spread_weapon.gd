@@ -5,11 +5,11 @@ class_name EnemySpreadWeapon extends Node2D
 const MUZZLE_OFFSET := 30.0
 const PROJECTILE_SPEED := 483.0
 const PELLET_COUNT := 5
-const SPREAD_TOTAL := 0.70  # total arc in radians (~40 deg)
+const SPREAD_TOTAL := 0.455  # 35% tighter than the prior spread
 const PROJECTILE_SCENE := preload("res://scenes/tests/Brunich/enemy_spread_projectile.tscn")
 
 var Owner: CharacterBody2D
-var ShootInterval := 0.84
+var ShootInterval := 0.195
 var PredictionLead := 0.10
 
 var _shoot_timer := 0.0
@@ -84,7 +84,7 @@ func get_attack_profile_for_player() -> Dictionary:
 
 func _get_projectile_profile() -> Dictionary:
 	return {
-		"damage": 2,
+		"damage": 3,
 		"life_time": 1.05,
 		"visual_scale": 0.80,
 		"outer_color": Color(1.0, 0.74, 0.05, 0.92),
@@ -97,7 +97,7 @@ func _get_projectile_profile() -> Dictionary:
 
 func _get_pickup_profile() -> Dictionary:
 	return {
-		"damage": 2,
+		"damage": 3,
 		"life_time": 1.2,
 		"visual_scale": 0.85,
 		"outer_color": Color(1.0, 0.78, 0.08, 0.92),

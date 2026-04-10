@@ -24,6 +24,7 @@ func _run() -> void:
 	_test_narrative_overlay_instantiation()
 	_test_npc_narrative_instantiation()
 	_test_scene_shells_load()
+	await _test_menu_uses_pixel_font()
 	_test_brunich_tests_loads()
 	await _wait_frames(4)
 	await _test_brunich_tests_narrative_hooks()
@@ -173,6 +174,14 @@ func _test_scene_shells_load() -> void:
 	_expect(INTRO_SCENE != null, "intro_cinematic.tscn debe cargar")
 	_expect(REST_ZONE_SCENE != null, "rest_zone.tscn debe cargar")
 
+func _test_menu_uses_pixel_font() -> void:
+	var menu: Node = MAIN_MENU_SCENE.instantiate()
+	root.add_child(menu)
+	await _wait_frames(3)
+	_expect_all_labels_use_pixel_font(menu, "el menu principal")
+	menu.queue_free()
+	await _wait_frames(1)
+
 func _test_brunich_tests_loads() -> void:
 	var scene_path := "res://scenes/tests/Brunich/Brunich_tests.tscn"
 	_expect(ResourceLoader.exists(scene_path), "Brunich_tests.tscn debe existir")
@@ -220,6 +229,7 @@ func _test_scene_flow_basics() -> void:
 	await _wait_frames(3)
 	_expect(intro.get("_overlay") != null, "la intro debe construir NarrativeOverlay")
 	_expect(intro.has_method("_on_sequence_done"), "la intro debe exponer el cierre de secuencia")
+	_expect_all_labels_use_pixel_font(intro, "la intro")
 	intro._on_sequence_done()
 	await _wait_frames(2)
 	_expect(bool(sm.data.get("has_intro_played", false)), "al terminar la intro el slot debe quedar marcado como intro ya vista")
@@ -233,6 +243,7 @@ func _test_scene_flow_basics() -> void:
 	_expect(rest_zone.get("_player_node") != null, "el hub debe crear el nodo invisible del jugador para NPCs")
 	_expect(rest_zone.has_method("_play_entry_reflection"), "el hub debe tener reflexión de entrada")
 	_expect(rest_zone.has_method("_refresh_hud"), "el hub debe poder refrescar el HUD con datos del save")
+	_expect_all_labels_use_pixel_font(rest_zone, "el hub")
 	rest_zone.queue_free()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -258,6 +269,27 @@ func _report() -> void:
 		print("FAIL brunich_metagame_smoke — %d errores:" % _failures.size())
 		for f in _failures:
 			print("  " + f)
+
+func _expect_all_labels_use_pixel_font(root_node: Node, scene_label: String) -> void:
+	for child in _collect_label_nodes(root_node):
+		var label := child as Label
+		if label == null or label.text.strip_edges().is_empty():
+			continue
+		var settings := label.label_settings
+		_expect(settings != null, "%s debe asignar LabelSettings a \"%s\"" % [scene_label, label.text])
+		if settings == null:
+			continue
+		_expect(settings.font is FontFile, "%s debe usar una fuente pixel real en \"%s\"" % [scene_label, label.text])
+		if settings.font is FontFile:
+			_expect(String(settings.font.resource_path).ends_with("Silkscreen-Regular.ttf"), "%s debe usar la fuente pixel compartida en \"%s\"" % [scene_label, label.text])
+
+func _collect_label_nodes(root_node: Node) -> Array[Node]:
+	var result: Array[Node] = []
+	for child in root_node.get_children():
+		if child is Label:
+			result.append(child)
+		result.append_array(_collect_label_nodes(child))
+	return result
 	quit(0 if _failures.is_empty() else 1)
 
 func has_property(obj: Object, prop: String) -> bool:

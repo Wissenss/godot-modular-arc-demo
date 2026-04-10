@@ -73,6 +73,7 @@ const HUD_FRAME_COLOR := Color(0.12, 0.09, 0.16, 0.94)
 const HUD_BACK_COLOR := Color(0.03, 0.03, 0.05, 0.90)
 const HUD_HEALTH_COLOR := Color(0.88, 0.16, 0.16, 0.96)
 const HUD_MANA_COLOR := Color(0.06, 0.72, 0.94, 0.96)
+const HUD_THOUGHT_COLOR := Color(0.64, 0.30, 1.0, 0.96)
 const HUD_TEXT_COLOR := Color(0.90, 0.94, 1.0, 0.96)
 const HUD_TEXT_OUTLINE := Color(0.03, 0.04, 0.08, 0.96)
 const HUD_BAR_LABEL_WIDTH := 28.0
@@ -81,18 +82,17 @@ const HUD_BAR_INSET := Vector2(32.0, 2.0)
 const HUD_VALUE_GAP := 10.0
 const HUD_VALUE_WIDTH := 96.0
 const HUD_VALUE_DIGITS := 3
+const HUD_THOUGHT_BAR_SIZE := Vector2(128.0, 10.0)
+const HUD_THOUGHT_VALUE_WIDTH := 76.0
+const HUD_THOUGHT_MARGIN := Vector2(18.0, 18.0)
+const HUD_THOUGHT_PANEL_HEIGHT := 18.0
 const ROOM_CLI_PANEL_SIZE := Vector2(194.0, 28.0)
 const ROOM_CLI_MARGIN := Vector2(18.0, 18.0)
 const ROOM_CLI_PREFIX := "room::"
 const ROOM_CLI_NUMBER_DIGITS := 2
 const ROOM_CLI_ANIM_STEP := 0.042
 const ROOM_CLI_CURSOR_PERIOD := 0.5
-const HUD_FONT_NAMES := [
-	"Terminal",
-	"Lucida Console",
-	"Consolas",
-	"Courier New",
-]
+const HUD_FONT_NAMES := ["Terminal"]
 enum RoomCliAnimState {
 	IDLE,
 	ERASE,
@@ -126,12 +126,16 @@ var _health_fill: ColorRect = null
 var _mana_fill: ColorRect = null
 var _health_label: Label = null
 var _mana_label: Label = null
+var _thought_label: Label = null
 var _health_value_label: Label = null
 var _mana_value_label: Label = null
+var _thought_fill: ColorRect = null
+var _thought_value_label: Label = null
 var _room_cli: Control = null
 var _room_cli_bg: ColorRect = null
 var _room_cli_line: ColorRect = null
 var _room_cli_label: Label = null
+var _room_cli_cursor: ColorRect = null
 var _room_cli_text := ""
 var _room_cli_target_text := ""
 var _room_cli_anim_state: RoomCliAnimState = RoomCliAnimState.IDLE
@@ -410,7 +414,8 @@ func _apply_enemy_scaling(enemy: CharacterBody2D, enemy_index: int) -> void:
 			weapon = child
 			break
 	if weapon != null and weapon.get("ShootInterval") != null:
-		var minimum_interval := 0.34 if not IsBossRoom else 0.24
+		var base_interval := float(weapon.ShootInterval)
+		var minimum_interval := minf(base_interval, 0.34 if not IsBossRoom else 0.24)
 		weapon.ShootInterval = maxf(float(weapon.ShootInterval) * fire_mult, minimum_interval)
 
 func _refresh_room_clear_state(room_token: int) -> void:
@@ -572,6 +577,11 @@ func _build_hud() -> void:
 	_mana_fill = mana_bar["fill"] as ColorRect
 	_mana_label = mana_bar["label"] as Label
 	_mana_value_label = mana_bar["value_label"] as Label
+
+	var thought_bar := _create_thought_hud_bar()
+	_thought_fill = thought_bar["fill"] as ColorRect
+	_thought_label = thought_bar["label"] as Label
+	_thought_value_label = thought_bar["value_label"] as Label
 	_build_room_cli()
 
 func _create_hud_bar(label_text: String, local_position: Vector2, fill_color: Color) -> Dictionary:
@@ -628,6 +638,68 @@ func _create_hud_bar(label_text: String, local_position: Vector2, fill_color: Co
 		"value_label": value_label,
 	}
 
+func _create_thought_hud_bar() -> Dictionary:
+	var container := Control.new()
+	container.name = "at_bar"
+	container.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	container.anchor_left = 1.0
+	container.anchor_right = 1.0
+	container.anchor_top = 1.0
+	container.anchor_bottom = 1.0
+	container.offset_left = -(HUD_THOUGHT_BAR_SIZE.x + HUD_THOUGHT_VALUE_WIDTH + 44.0 + HUD_THOUGHT_MARGIN.x)
+	container.offset_right = -HUD_THOUGHT_MARGIN.x
+	container.offset_top = -(HUD_THOUGHT_PANEL_HEIGHT + HUD_THOUGHT_MARGIN.y)
+	container.offset_bottom = -HUD_THOUGHT_MARGIN.y
+	container.custom_minimum_size = Vector2(HUD_THOUGHT_BAR_SIZE.x + HUD_THOUGHT_VALUE_WIDTH + 44.0, HUD_THOUGHT_PANEL_HEIGHT)
+	_hud_root.add_child(container)
+
+	var label := Label.new()
+	label.name = "at_label"
+	label.label_settings = _create_terminal_label_settings(HUD_THOUGHT_COLOR, 10, 1)
+	label.text = "AT"
+	label.position = Vector2(0.0, -1.0)
+	label.size = Vector2(24.0, HUD_THOUGHT_PANEL_HEIGHT)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	container.add_child(label)
+
+	var frame := ColorRect.new()
+	frame.name = "at_frame"
+	frame.color = Color(0.10, 0.04, 0.16, 0.94)
+	frame.position = Vector2(26.0, 2.0)
+	frame.size = HUD_THOUGHT_BAR_SIZE + Vector2(4.0, 4.0)
+	container.add_child(frame)
+
+	var background := ColorRect.new()
+	background.name = "at_bg"
+	background.color = Color(0.03, 0.02, 0.06, 0.92)
+	background.position = Vector2(28.0, 4.0)
+	background.size = HUD_THOUGHT_BAR_SIZE
+	container.add_child(background)
+
+	var fill := ColorRect.new()
+	fill.name = "at_fill"
+	fill.color = HUD_THOUGHT_COLOR
+	fill.position = background.position
+	fill.size = HUD_THOUGHT_BAR_SIZE
+	container.add_child(fill)
+
+	var value_label := Label.new()
+	value_label.name = "at_value"
+	value_label.label_settings = _create_terminal_label_settings(HUD_TEXT_COLOR, 11, 1)
+	value_label.position = Vector2(background.position.x + HUD_THOUGHT_BAR_SIZE.x + 8.0, -1.0)
+	value_label.size = Vector2(HUD_THOUGHT_VALUE_WIDTH, HUD_THOUGHT_PANEL_HEIGHT)
+	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	container.add_child(value_label)
+
+	return {
+		"container": container,
+		"frame": frame,
+		"background": background,
+		"fill": fill,
+		"label": label,
+		"value_label": value_label,
+	}
+
 func _build_room_cli() -> void:
 	_room_cli = Control.new()
 	_room_cli.name = "room_cli"
@@ -659,12 +731,22 @@ func _build_room_cli() -> void:
 	_room_cli_label.label_settings = _create_terminal_label_settings(Color(0.72, 1.0, 0.94, 1.0), 13, 1)
 	_room_cli_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_room_cli_label.offset_left = 10.0
-	_room_cli_label.offset_right = -10.0
+	_room_cli_label.offset_right = -22.0
 	_room_cli_label.offset_top = 2.0
 	_room_cli_label.offset_bottom = -2.0
 	_room_cli_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_room_cli_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_room_cli.add_child(_room_cli_label)
+
+	_room_cli_cursor = ColorRect.new()
+	_room_cli_cursor.name = "room_cli_cursor"
+	_room_cli_cursor.color = Color(0.72, 1.0, 0.94, 0.96)
+	_room_cli_cursor.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_room_cli_cursor.offset_left = -12.0
+	_room_cli_cursor.offset_right = -9.0
+	_room_cli_cursor.offset_top = 7.0
+	_room_cli_cursor.offset_bottom = 20.0
+	_room_cli.add_child(_room_cli_cursor)
 
 	_room_cli_text = _format_room_cli_target()
 	_room_cli_target_text = _room_cli_text
@@ -675,6 +757,8 @@ func _create_terminal_label_settings(font_color: Color, font_size: int, outline_
 	var font := SystemFont.new()
 	font.font_names = PackedStringArray(HUD_FONT_NAMES)
 	font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	font.hinting = TextServer.HINTING_NONE
+	font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	settings.font = font
 	settings.font_size = font_size
 	settings.font_color = font_color
@@ -730,14 +814,13 @@ func _update_room_cli(delta: float) -> void:
 func _render_room_cli() -> void:
 	if _room_cli_label == null:
 		return
-	var cursor := "|" if _room_cli_cursor_timer < ROOM_CLI_CURSOR_PERIOD else " "
-	_room_cli_label.text = "%s%s" % [_room_cli_text, cursor]
+	_room_cli_label.text = _room_cli_text
+	if _room_cli_cursor != null:
+		_room_cli_cursor.visible = _room_cli_cursor_timer < ROOM_CLI_CURSOR_PERIOD
 	if _room_cli_bg != null:
-		var pulse := sin(float(Time.get_ticks_msec()) * 0.008) * 0.5 + 0.5
-		var active_glow := 0.0 if _room_cli_anim_state == RoomCliAnimState.IDLE else 0.10
-		_room_cli_bg.color = Color(0.04, 0.08, 0.15, 0.76 + pulse * 0.04 + active_glow)
+		_room_cli_bg.color = Color(0.04, 0.08, 0.15, 0.78 if _room_cli_anim_state == RoomCliAnimState.IDLE else 0.88)
 	if _room_cli_line != null:
-		_room_cli_line.color = Color(0.18, 0.34, 0.58, 0.42 if _room_cli_anim_state == RoomCliAnimState.IDLE else 0.64)
+		_room_cli_line.color = Color(0.18, 0.34, 0.58, 0.36 if _room_cli_anim_state == RoomCliAnimState.IDLE else 0.58)
 
 func debug_get_room_cli_text() -> String:
 	return _room_cli_text
@@ -752,7 +835,7 @@ func _handle_player_health_changed(_health: int, _old_health: int) -> void:
 	_update_hud_bars()
 
 func _update_hud_bars() -> void:
-	if _health_fill == null or _mana_fill == null:
+	if _health_fill == null or _mana_fill == null or _thought_fill == null:
 		return
 
 	var current_health := 0.0
@@ -781,12 +864,30 @@ func _update_hud_bars() -> void:
 	if _mana_value_label != null:
 		_mana_value_label.text = _format_hud_counter(current_ciclos, max_cy)
 
+	var current_thought := 0.0
+	var max_thought := 1.0
+	var thought_ratio := 0.0
+	if _player != null and _player.has_method("get_accelerated_thought_charge") and _player.has_method("get_accelerated_thought_max_charge"):
+		current_thought = float(_player.get_accelerated_thought_charge())
+		max_thought = maxf(float(_player.get_accelerated_thought_max_charge()), 0.001)
+		thought_ratio = clampf(current_thought / max_thought, 0.0, 1.0)
+	_thought_fill.size.x = HUD_BAR_SIZE.x * thought_ratio
+	_thought_fill.size.y = HUD_BAR_SIZE.y
+	if _thought_value_label != null:
+		_thought_value_label.text = _format_hud_decimal_counter(current_thought, max_thought)
+
 func _format_hud_counter(current_value: float, max_value: float) -> String:
 	var max_int := maxi(int(round(max_value)), 0)
 	var current_int := clampi(int(round(current_value)), 0, max_int)
 	return "%s/%s" % [
 		str(current_int).lpad(HUD_VALUE_DIGITS, "0"),
 		str(max_int).lpad(HUD_VALUE_DIGITS, "0"),
+	]
+
+func _format_hud_decimal_counter(current_value: float, max_value: float) -> String:
+	return "%.1f/%.1f" % [
+		clampf(current_value, 0.0, max_value),
+		max_value,
 	]
 
 # ── Narrative & progression helpers ──────────────────────────────────────────

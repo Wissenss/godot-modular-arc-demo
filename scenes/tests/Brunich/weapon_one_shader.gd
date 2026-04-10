@@ -1,7 +1,6 @@
 extends Node2D
 
-const SHOOT_COOLDOWN := 0.08
-const PLAYER_FIRE_COOLDOWN_MULTIPLIER := 1.25
+const SHOOT_COOLDOWN := 0.10
 const DEFAULT_ATTACK_ID := "rogue_shard"
 const DEFAULT_PROJECTILE_SPEED := 360.0
 const STOLEN_OUTER_COLOR := Color(0.85, 0.77, 1.0, 0.95)
@@ -178,7 +177,7 @@ func _apply_attack_profile(profile: Dictionary) -> void:
 	_current_beam_scene = beam_scene if beam_scene is PackedScene else null
 	_current_muzzle_offset = float(profile.get("muzzle_offset", 30.0))
 	_current_projectile_speed = float(profile.get("projectile_speed", 360.0))
-	_current_shoot_cooldown = float(profile.get("shoot_cooldown", SHOOT_COOLDOWN)) * PLAYER_FIRE_COOLDOWN_MULTIPLIER
+	_current_shoot_cooldown = float(profile.get("shoot_cooldown", SHOOT_COOLDOWN))
 	_current_projectile_profile = profile.get("projectile_profile", {}).duplicate(true)
 	_current_beam_profile = profile.get("beam_profile", {}).duplicate(true)
 	_current_fire_mode = str(profile.get("fire_mode", "single"))

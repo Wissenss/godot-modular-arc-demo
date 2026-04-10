@@ -3,7 +3,7 @@ extends Node2D
 ## Plays once per save slot (first run only).
 ## All visuals built programmatically; terminal text via NarrativeOverlay.
 
-const FONT_NAMES := ["Lucida Console", "Consolas", "Courier New", "Terminal"]
+const FONT_NAMES := ["Terminal"]
 const COLOR_BG := Color(0.008, 0.010, 0.022, 1.0)
 const MC_COLOR := Color(0.60, 0.18, 1.00, 1.0)
 const WARDEN_COLOR := Color(1.00, 0.52, 0.14, 1.0)
@@ -262,6 +262,8 @@ func _mk_lbl(text: String, sz: int, col: Color) -> Label:
 	var fnt := SystemFont.new()
 	fnt.font_names = PackedStringArray(FONT_NAMES)
 	fnt.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	fnt.hinting = TextServer.HINTING_NONE
+	fnt.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	ls.font = fnt
 	ls.font_size = sz
 	ls.font_color = col

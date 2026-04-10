@@ -205,3 +205,5 @@ Una sola vez por slot. Secuencia: MC encarcelado → Carcelero monitoreando → 
 - **El hackeo es el argumento, no solo mecánica** — cada uso debe disparar la secuencia narrativa de 3 líneas (MC → SISTEMA → MC). No saltearla ni hacerla opcional.
 - **Humor negro técnico**, no edge-lord genérico. Todo comentario/diálogo del MC pasa por el filtro "diagnóstico frío + crueldad elegante + desprecio técnico".
 - **Tiles 64x64 finales**, atlas mínimo 4x2, sin texto dentro del tile. Profundidad por valores y brillos, no por ruido. Ver sección "Principios de Floor Tiles" en la biblia.
+- **Toda tipografía visible del juego debe usar estilo pixel/terminal consistente** — HUD, menús, prompts, diálogos, upgrades y overlays. No mezclar sans-serif moderna o fuentes genéricas suaves con la UI principal.
+- **Los overlays narrativos pausan toda la acción** — mientras haya texto escribiéndose o esperando confirmación, enemigos, jugador y mundo quedan congelados. El avance es solo con click izquierdo o espacio: primer input revela la línea completa, segundo input avanza.

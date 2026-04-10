@@ -2,7 +2,7 @@ extends Node2D
 ## Main menu — terminal aesthetic, 3 save slots.
 ## All UI built programmatically in a CanvasLayer.
 
-const FONT_NAMES := ["Lucida Console", "Consolas", "Courier New", "Terminal"]
+const FONT_NAMES := ["Terminal"]
 const COLOR_BG := Color(0.010, 0.014, 0.028, 1.0)
 const COLOR_PANEL := Color(0.030, 0.042, 0.078, 0.96)
 const COLOR_PANEL_HOVER := Color(0.050, 0.068, 0.120, 0.96)
@@ -225,6 +225,8 @@ func _mk_settings(sz: int, col: Color) -> LabelSettings:
 	var fnt := SystemFont.new()
 	fnt.font_names = PackedStringArray(FONT_NAMES)
 	fnt.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	fnt.hinting = TextServer.HINTING_NONE
+	fnt.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	ls.font = fnt
 	ls.font_size = sz
 	ls.font_color = col

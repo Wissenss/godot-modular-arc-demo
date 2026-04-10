@@ -281,6 +281,8 @@ Cuando alguien trabaje en el juego:
 - Las reflexiones del MC nunca son autocompasivas. Son diagnosticos frios.
 - El hackeo es el argumento del juego, no solo una mecanica. Cada uso debe sentirse.
 - El Nodo Muerto es provisional de lore — expandir con cuidado; es un accidente de infraestructura, no un lugar mistico.
+- Toda la UI visible del juego debe sentirse parte del mismo sistema: tipografia pixel/terminal consistente en menús, HUD, overlays narrativos, prompts y labels de upgrades. No mezclar fuentes suaves o modernas con el lenguaje principal.
+- Los mensajes narrativos en formato comando congelan por completo la accion del juego hasta que el jugador avance manualmente. Flujo obligatorio: primer click izquierdo o espacio revela toda la linea; segundo click izquierdo o espacio pasa a la siguiente.
 
 
 ## 11. Estado de Direccion Actual

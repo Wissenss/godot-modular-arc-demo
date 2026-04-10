@@ -38,12 +38,14 @@ func _run() -> void:
 	await _wait_frames(1)
 	var spread_pickup_profile: Dictionary = spread_weapon.get_attack_profile_for_player()
 	var spread_live_profile: Dictionary = spread_weapon._get_projectile_profile()
-	_expect(is_equal_approx(float(spread_weapon.ShootInterval), 0.84), "la escopeta enemiga debe disparar 20 por ciento mas seguido")
+	_expect(is_equal_approx(float(spread_weapon.ShootInterval), 0.195), "la escopeta enemiga debe ganar 35 por ciento mas de cadencia")
 	_expect(is_equal_approx(float(spread_weapon.PROJECTILE_SPEED), 483.0), "la escopeta enemiga debe lanzar pellets 15 por ciento mas rapidos")
-	_expect(int(spread_live_profile.get("damage", -1)) == 2, "la escopeta enemiga debe bajar a 2 de dano por pellet")
+	_expect(is_equal_approx(float(spread_weapon.SPREAD_TOTAL), 0.455), "la escopeta enemiga debe cerrar su patron un 35 por ciento")
+	_expect(int(spread_live_profile.get("damage", -1)) == 3, "la escopeta enemiga debe subir su dano por pellet a 3")
 	_expect(is_equal_approx(float(spread_pickup_profile.get("shoot_cooldown", -1.0)), float(spread_weapon.ShootInterval)), "la escopeta robada debe conservar la misma cadencia base del enemigo")
 	_expect(is_equal_approx(float(spread_pickup_profile.get("projectile_speed", -1.0)), float(spread_weapon.PROJECTILE_SPEED)), "la escopeta robada debe conservar la misma velocidad del enemigo")
-	_expect(int(spread_pickup_profile.get("projectile_profile", {}).get("damage", -1)) == 2, "la escopeta robada debe mantener 2 de dano por pellet")
+	_expect(is_equal_approx(float(spread_pickup_profile.get("spread_total", -1.0)), float(spread_weapon.SPREAD_TOTAL)), "la escopeta robada debe conservar el spread mas concentrado del enemigo")
+	_expect(int(spread_pickup_profile.get("projectile_profile", {}).get("damage", -1)) == 3, "la escopeta robada debe mantener 3 de dano por pellet")
 	spread_weapon.queue_free()
 
 	var pierce_weapon: Node = load(PIERCE_WEAPON_SCENE).instantiate()
@@ -97,7 +99,7 @@ func _run() -> void:
 	var dash_distance := player.global_position.distance_to(start_pos)
 	_expect(dash_distance >= 88.0 and dash_distance <= 94.0, "el dash debe extenderse cerca de un 10 por ciento respecto al ajuste anterior")
 	player.Weapon.equip_enemy_attack(orb_pickup_profile)
-	_expect(is_equal_approx(float(player.Weapon.get("_current_shoot_cooldown")), orb_shoot_interval * 1.25), "las armas robadas del MC deben respetar la bajada global de cadencia del jugador")
+	_expect(is_equal_approx(float(player.Weapon.get("_current_shoot_cooldown")), orb_shoot_interval), "las armas robadas del MC deben respetar la misma cadencia real del enemigo")
 	player.queue_free()
 
 	var projectile := load(PROJECTILE_SCENE).instantiate() as Node2D

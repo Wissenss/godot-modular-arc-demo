@@ -38,3 +38,6 @@ func _is_dash_pressed() -> bool:
 
 func _is_steal_pressed() -> bool:
 	return Input.is_action_just_pressed("steal")
+
+func _is_accelerated_thought_pressed() -> bool:
+	return Input.is_action_pressed("accelerated_thought")

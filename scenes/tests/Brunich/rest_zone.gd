@@ -3,7 +3,7 @@ extends Node2D
 ## A decommissioned network sector where signals don't reach.
 ## Partially-free IAs surface here. MC respawns and upgrades before each run.
 
-const FONT_NAMES := ["Lucida Console", "Consolas", "Courier New", "Terminal"]
+const FONT_NAMES := ["Terminal"]
 const COLOR_BG := Color(0.012, 0.016, 0.035, 1.0)
 const COLOR_FLOOR := Color(0.040, 0.055, 0.095, 0.90)
 const COLOR_TEXT := Color(0.80, 0.88, 1.00, 0.90)
@@ -484,6 +484,8 @@ func _mk_lbl(text: String, sz: int, col: Color) -> Label:
 	var fnt := SystemFont.new()
 	fnt.font_names = PackedStringArray(FONT_NAMES)
 	fnt.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	fnt.hinting = TextServer.HINTING_NONE
+	fnt.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 	ls.font = fnt
 	ls.font_size = sz
 	ls.font_color = col
