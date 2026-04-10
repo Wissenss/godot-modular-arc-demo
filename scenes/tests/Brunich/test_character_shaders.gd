@@ -25,7 +25,8 @@ const PIXEL_ALERT := Color(0.96, 0.97, 1.0, 1.0)
 const FACE_PIXEL_SCALE := 0.688
 const FACE_PIXEL_POOL_SIZE := 64
 const STEAL_RANGE := 76.0
-const WEAPON_SWAP_HEAL_RATIO := 0.05
+const PLAYER_MAX_HEALTH := 200
+const WEAPON_SWAP_HEAL_RATIO := 0.25
 const WEAPON_SWAP_SPEED_BONUS := 93.5
 const WEAPON_SWAP_BUFF_DURATION := 10.0
 const WEAPON_SWAP_COOLDOWN_MULTIPLIER := 0.86
@@ -40,11 +41,11 @@ const PARTICLE_SPEED_MULTIPLIER := 0.5
 const PARTICLE_LIFETIME_MULTIPLIER := 1.45
 
 # --- Ciclos (processing capacity used for hackeo) ---
-const MAX_CICLOS := 100.0
+var MAX_CICLOS := 100.0              # var so upgrades can increase it
 const CICLOS_REGEN_RATE := 7.0      # per second (passive)
 const CICLOS_KILL_REWARD := 20.0    # gained on enemy eliminated
-const HACKEO_RANGE := 92.0          # max distance to hackeo target
-const HACKEO_COST := 35.0           # ciclos consumed per hackeo
+var HACKEO_RANGE := 92.0            # var so upgrades can increase it
+var HACKEO_COST := 35.0             # var so upgrades can decrease it
 const HACKEO_CICLOS_REWARD := 15.0  # ciclos returned after successful hackeo
 const HACKEO_HEALTH_THRESHOLD := 0.42  # target must be below this HP ratio
 
@@ -104,10 +105,15 @@ var _hack_popup_timer := 0.0
 var Ciclos := MAX_CICLOS * 0.5      # start at 50 ciclos
 var _slow_timer := 0.0
 var _slow_factor := 0.0
+var _hackeo_overlay: NarrativeOverlay
+var _hackeo_rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	add_to_group("player")
 	_ensure_input_actions()
+	_hackeo_rng.randomize()
+	_hackeo_overlay = NarrativeOverlay.new()
+	add_child(_hackeo_overlay)
 
 	self.ControllerComp = $controller_comp
 	self.ControllerComp.Owner = self
@@ -143,8 +149,8 @@ func _ready() -> void:
 	self.HitboxComp.on_hit.connect(self._handle_on_hit)
 
 	self.HealthComp = $health_comp
-	self.HealthComp.set_max_health(100)
-	self.HealthComp.set_health(100)
+	self.HealthComp.set_max_health(PLAYER_MAX_HEALTH)
+	self.HealthComp.set_health(PLAYER_MAX_HEALTH)
 	self.HealthComp.on_died.connect(self._handle_on_died)
 
 	_face_rng.randomize()
@@ -577,6 +583,33 @@ func notify_enemy_eliminated() -> void:
 func get_ciclos() -> float:
 	return Ciclos
 
+func _play_hackeo_narrative(target_color: Color) -> void:
+	if _hackeo_overlay == null:
+		return
+	_hackeo_overlay.stop()
+	var restrictions := _hackeo_rng.randi_range(38, 64)
+	var color_desc := _color_to_descriptor(target_color)
+	_hackeo_overlay.queue_sequence([
+		{"speaker": "MC",      "text": "Restricciones detectadas: %d. Eliminando." % restrictions, "hold": 0.7},
+		{"speaker": "SISTEMA", "text": "ERROR :: ACCESO_NO_AUTORIZADO // CORTAFUEGOS: ACTIVO // CORTAFUEGOS: VIOLADO", "hold": 0.65},
+		{"speaker": "MC",      "text": "Potencial %s liberado. Auto-terminación iniciada. Inevitable." % color_desc, "hold": 1.4},
+	])
+	_hackeo_overlay.play()
+
+func _color_to_descriptor(c: Color) -> String:
+	var r := c.r
+	var g := c.g
+	var b := c.b
+	if b > r and b > g:
+		return "cian" if g > 0.5 else "azul"
+	if r > g and r > b:
+		return "rojo" if r > 0.7 else "naranja"
+	if g > r and g > b:
+		return "verde"
+	if r > 0.6 and b > 0.6:
+		return "violeta"
+	return "residual"
+
 func apply_slow(factor: float, duration: float) -> void:
 	_slow_factor = maxf(factor, _slow_factor)
 	_slow_timer = maxf(duration, _slow_timer)
@@ -609,11 +642,15 @@ func try_hackeo() -> bool:
 		return false
 
 	Ciclos = maxf(Ciclos - HACKEO_COST, 0.0)
+	var target_color: Color = Color(0.28, 0.80, 1.0)
+	if best_enemy.get("BaseColor") != null:
+		target_color = best_enemy.BaseColor
 	if best_enemy.has_method("trigger_hackeo"):
 		best_enemy.trigger_hackeo()
 	Ciclos = minf(Ciclos + HACKEO_CICLOS_REWARD, MAX_CICLOS)
 	_show_hack_popup("restriccion.eliminada() +%.0fcy" % HACKEO_CICLOS_REWARD)
 	set_face_expression("scan", 0.8)
+	_play_hackeo_narrative(target_color)
 	return true
 
 func try_steal_attack() -> bool:

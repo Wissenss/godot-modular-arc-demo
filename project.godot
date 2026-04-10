@@ -16,7 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="AI Rogue"
 config/tags=PackedStringArray("chems", "favorite")
-run/main_scene="res://scenes/tests/Brunich/Brunich_tests.tscn"
+run/main_scene="res://scenes/tests/Brunich/main_menu.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -50,6 +50,16 @@ ui_down={
 , Object(InputEventJoypadMotion,"resource_local_to_scene":false,"resource_name":"","device":-1,"axis":1,"axis_value":1.0,"script":null)
 ]
 }
+
+[autoload]
+
+SaveManager="*res://scenes/tests/Brunich/save_manager.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=640
+window/size/resizable=false
 
 [rendering]
 

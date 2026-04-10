@@ -54,6 +54,8 @@ func _handle_on_hurt(to: Area2D, _damage: int) -> void:
 			to.Owner.apply_slow(_slow_factor, _slow_duration)
 
 	# Pierce: pass through instead of dying
+	if _pierce_count < 0:
+		return
 	if _pierce_count > 0:
 		_pierce_count -= 1
 		return

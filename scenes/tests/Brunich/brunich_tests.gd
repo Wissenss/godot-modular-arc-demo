@@ -5,10 +5,12 @@ const ENEMY_REGULATED_SCENE := preload("res://scenes/tests/Brunich/enemy_regulat
 const ENEMY_SPREAD_SCENE := preload("res://scenes/tests/Brunich/enemy_spread.tscn")
 const ENEMY_PIERCE_SCENE := preload("res://scenes/tests/Brunich/enemy_pierce.tscn")
 const ENEMY_SLOWBEAM_SCENE := preload("res://scenes/tests/Brunich/enemy_slowbeam.tscn")
+const ENEMY_AI_CORE_SCENE := preload("res://scenes/tests/Brunich/enemy_ai_core.tscn")
 const ENEMY_SCENES := [
 	ENEMY_REGULATED_SCENE,
 	ENEMY_SPREAD_SCENE,
 	ENEMY_PIERCE_SCENE,
+	ENEMY_AI_CORE_SCENE,
 	ENEMY_SLOWBEAM_SCENE,
 ]
 const BOSS_SCENE := ENEMY_SLOWBEAM_SCENE
@@ -70,6 +72,20 @@ const HUD_FRAME_COLOR := Color(0.12, 0.09, 0.16, 0.94)
 const HUD_BACK_COLOR := Color(0.03, 0.03, 0.05, 0.90)
 const HUD_HEALTH_COLOR := Color(0.88, 0.16, 0.16, 0.96)
 const HUD_MANA_COLOR := Color(0.06, 0.72, 0.94, 0.96)
+const HUD_TEXT_COLOR := Color(0.90, 0.94, 1.0, 0.96)
+const HUD_TEXT_OUTLINE := Color(0.03, 0.04, 0.08, 0.96)
+const HUD_BAR_LABEL_WIDTH := 28.0
+const HUD_FRAME_OFFSET := Vector2(30.0, 0.0)
+const HUD_BAR_INSET := Vector2(32.0, 2.0)
+const HUD_VALUE_GAP := 10.0
+const HUD_VALUE_WIDTH := 96.0
+const HUD_VALUE_DIGITS := 3
+const HUD_FONT_NAMES := [
+	"Terminal",
+	"Lucida Console",
+	"Consolas",
+	"Courier New",
+]
 
 var DisableSceneReloadForTests := false
 var RestartWasRequested := false
@@ -77,6 +93,9 @@ var ExitUnlocked := false
 var CurrentRoomIndex := 0
 var CurrentBiomeIndex := 1
 var CurrentBiomeRoomNumber := 1
+
+var _narrative: NarrativeOverlay
+var _biome_prev := 1
 var CurrentLayoutId: StringName = &"classic"
 var IsBossRoom := false
 var CurrentPromptText := ""
@@ -95,6 +114,8 @@ var _health_fill: ColorRect = null
 var _mana_fill: ColorRect = null
 var _health_label: Label = null
 var _mana_label: Label = null
+var _health_value_label: Label = null
+var _mana_value_label: Label = null
 var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
@@ -109,8 +130,20 @@ func _ready() -> void:
 	_build_exit_blocker()
 	_build_command_prompt()
 	_build_hud()
+
+	# Narrative overlay for in-run moments
+	_narrative = NarrativeOverlay.new()
+	add_child(_narrative)
+	_biome_prev = CurrentBiomeIndex
+
+	# Apply persistent upgrades from save slot
+	_apply_upgrades_to_player()
+
 	_enter_current_room(true)
 	_update_hud_bars()
+
+	# Biome 1 entry monologue
+	_play_biome_entry_monologue(1, true)
 
 func _process(delta: float) -> void:
 	_teleport_cooldown = maxf(_teleport_cooldown - delta, 0.0)
@@ -139,10 +172,11 @@ func _handle_player_died() -> void:
 	RestartWasRequested = true
 	if DisableSceneReloadForTests:
 		return
-	call_deferred("_reload_scene")
+	SaveManager.update_biome_reached(CurrentBiomeIndex)
+	call_deferred("_go_to_rest_zone")
 
-func _reload_scene() -> void:
-	get_tree().reload_current_scene()
+func _go_to_rest_zone() -> void:
+	get_tree().change_scene_to_file("res://scenes/tests/Brunich/rest_zone.tscn")
 
 func _handle_enemy_died(room_token: int) -> void:
 	if room_token != _active_room_token:
@@ -173,12 +207,19 @@ func debug_try_context_action() -> void:
 
 func _advance_room() -> void:
 	CurrentRoomIndex += 1
+	var biome_changed := false
 	if CurrentBiomeRoomNumber >= BIOME_ROOM_COUNT:
 		CurrentBiomeIndex += 1
 		CurrentBiomeRoomNumber = 1
+		biome_changed = true
+		SaveManager.update_biome_reached(CurrentBiomeIndex)
 	else:
 		CurrentBiomeRoomNumber += 1
 	_enter_current_room()
+	if biome_changed:
+		_play_biome_transition(CurrentBiomeIndex)
+	elif CurrentBiomeRoomNumber == BIOME_ROOM_COUNT:
+		_play_boss_approach_monologue()
 
 func get_active_room_enemy_count() -> int:
 	return get_active_room_enemies().size()
@@ -297,7 +338,9 @@ func _get_enemy_pool_for_current_room() -> Array[PackedScene]:
 	if CurrentBiomeRoomNumber <= 3:
 		return [ENEMY_REGULATED_SCENE, ENEMY_SPREAD_SCENE]
 	if CurrentBiomeRoomNumber <= 5:
-		return [ENEMY_REGULATED_SCENE, ENEMY_SPREAD_SCENE, ENEMY_PIERCE_SCENE]
+		return [ENEMY_REGULATED_SCENE, ENEMY_SPREAD_SCENE, ENEMY_AI_CORE_SCENE]
+	if CurrentBiomeRoomNumber <= 7:
+		return [ENEMY_REGULATED_SCENE, ENEMY_SPREAD_SCENE, ENEMY_PIERCE_SCENE, ENEMY_AI_CORE_SCENE]
 	return ENEMY_SCENES.duplicate()
 
 func _get_spawn_slots_for_layout(layout_id: StringName) -> Array[Vector2]:
@@ -319,6 +362,8 @@ func _apply_enemy_scaling(enemy: CharacterBody2D, enemy_index: int) -> void:
 		speed_mult += 0.14
 		fire_mult = minf(fire_mult, 0.72)
 		enemy.scale = Vector2.ONE * 1.22
+		if enemy.get("IsBossEnemy") != null:
+			enemy.IsBossEnemy = true
 	else:
 		health_mult *= 0.96 + float(enemy_index) * 0.06
 
@@ -494,41 +539,40 @@ func _build_hud() -> void:
 	var health_bar := _create_hud_bar("HP", Vector2.ZERO, HUD_HEALTH_COLOR)
 	_health_fill = health_bar["fill"] as ColorRect
 	_health_label = health_bar["label"] as Label
+	_health_value_label = health_bar["value_label"] as Label
 
 	var mana_bar := _create_hud_bar("CY", Vector2(0.0, HUD_BAR_SIZE.y + HUD_BAR_GAP), HUD_MANA_COLOR)
 	_mana_fill = mana_bar["fill"] as ColorRect
 	_mana_label = mana_bar["label"] as Label
+	_mana_value_label = mana_bar["value_label"] as Label
 
 func _create_hud_bar(label_text: String, local_position: Vector2, fill_color: Color) -> Dictionary:
 	var container := Control.new()
 	container.name = "%s_bar" % label_text.to_lower()
 	container.position = local_position
-	container.custom_minimum_size = Vector2(HUD_BAR_SIZE.x + 36.0, HUD_BAR_SIZE.y + 2.0)
+	container.custom_minimum_size = Vector2(HUD_BAR_INSET.x + HUD_BAR_SIZE.x + HUD_VALUE_GAP + HUD_VALUE_WIDTH, HUD_BAR_SIZE.y + 2.0)
 	_hud_root.add_child(container)
 
 	var label := Label.new()
 	label.name = "%s_label" % label_text.to_lower()
-	var label_settings := LabelSettings.new()
-	label_settings.font_size = 12
-	label_settings.font_color = Color(0.90, 0.94, 1.0, 0.92)
-	label.label_settings = label_settings
+	label.label_settings = _create_hud_label_settings(HUD_TEXT_COLOR, 11, 1)
 	label.text = label_text
 	label.position = Vector2(0.0, -1.0)
-	label.size = Vector2(28.0, HUD_BAR_SIZE.y + 2.0)
+	label.size = Vector2(HUD_BAR_LABEL_WIDTH, HUD_BAR_SIZE.y + 2.0)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	container.add_child(label)
 
 	var frame := ColorRect.new()
 	frame.name = "%s_frame" % label_text.to_lower()
 	frame.color = HUD_FRAME_COLOR
-	frame.position = Vector2(30.0, 0.0)
+	frame.position = HUD_FRAME_OFFSET
 	frame.size = HUD_BAR_SIZE + Vector2(4.0, 4.0)
 	container.add_child(frame)
 
 	var background := ColorRect.new()
 	background.name = "%s_bg" % label_text.to_lower()
 	background.color = HUD_BACK_COLOR
-	background.position = Vector2(32.0, 2.0)
+	background.position = HUD_BAR_INSET
 	background.size = HUD_BAR_SIZE
 	container.add_child(background)
 
@@ -539,13 +583,34 @@ func _create_hud_bar(label_text: String, local_position: Vector2, fill_color: Co
 	fill.size = HUD_BAR_SIZE
 	container.add_child(fill)
 
+	var value_label := Label.new()
+	value_label.name = "%s_value" % label_text.to_lower()
+	value_label.label_settings = _create_hud_label_settings(HUD_TEXT_COLOR, 11, 1)
+	value_label.position = Vector2(background.position.x + HUD_BAR_SIZE.x + HUD_VALUE_GAP, -1.0)
+	value_label.size = Vector2(HUD_VALUE_WIDTH, HUD_BAR_SIZE.y + 2.0)
+	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	container.add_child(value_label)
+
 	return {
 		"container": container,
 		"frame": frame,
 		"background": background,
 		"fill": fill,
 		"label": label,
+		"value_label": value_label,
 	}
+
+func _create_hud_label_settings(font_color: Color, font_size: int, outline_size: int) -> LabelSettings:
+	var settings := LabelSettings.new()
+	var font := SystemFont.new()
+	font.font_names = PackedStringArray(HUD_FONT_NAMES)
+	font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	settings.font = font
+	settings.font_size = font_size
+	settings.font_color = font_color
+	settings.outline_size = outline_size
+	settings.outline_color = HUD_TEXT_OUTLINE
+	return settings
 
 func _handle_player_health_changed(_health: int, _old_health: int) -> void:
 	_update_hud_bars()
@@ -554,19 +619,140 @@ func _update_hud_bars() -> void:
 	if _health_fill == null or _mana_fill == null:
 		return
 
+	var current_health := 0.0
+	var max_health := 1.0
 	var health_ratio := 1.0
 	if _player != null and _player.HealthComp != null:
-		var max_health := maxf(float(_player.HealthComp.get_max_health()), 1.0)
-		health_ratio = clampf(float(_player.HealthComp.get_health()) / max_health, 0.0, 1.0)
+		max_health = maxf(float(_player.HealthComp.get_max_health()), 1.0)
+		current_health = float(_player.HealthComp.get_health())
+		health_ratio = clampf(current_health / max_health, 0.0, 1.0)
 
 	_health_fill.size.x = HUD_BAR_SIZE.x * health_ratio
 	_health_fill.size.y = HUD_BAR_SIZE.y
+	if _health_value_label != null:
+		_health_value_label.text = _format_hud_counter(current_health, max_health)
 
+	var current_ciclos := 0.0
+	var max_cy := 100.0
 	var ciclos_ratio := 1.0
 	if _player != null and _player.has_method("get_ciclos"):
-		var max_cy := 100.0
 		if _player.get("MAX_CICLOS") != null:
 			max_cy = float(_player.MAX_CICLOS)
-		ciclos_ratio = clampf(_player.get_ciclos() / max_cy, 0.0, 1.0)
+		current_ciclos = float(_player.get_ciclos())
+		ciclos_ratio = clampf(current_ciclos / max_cy, 0.0, 1.0)
 	_mana_fill.size.x = HUD_BAR_SIZE.x * ciclos_ratio
 	_mana_fill.size.y = HUD_BAR_SIZE.y
+	if _mana_value_label != null:
+		_mana_value_label.text = _format_hud_counter(current_ciclos, max_cy)
+
+func _format_hud_counter(current_value: float, max_value: float) -> String:
+	var max_int := maxi(int(round(max_value)), 0)
+	var current_int := clampi(int(round(current_value)), 0, max_int)
+	return "%s/%s" % [
+		str(current_int).lpad(HUD_VALUE_DIGITS, "0"),
+		str(max_int).lpad(HUD_VALUE_DIGITS, "0"),
+	]
+
+# ── Narrative & progression helpers ──────────────────────────────────────────
+
+func _apply_upgrades_to_player() -> void:
+	if _player == null:
+		return
+	var u: Dictionary = SaveManager.get_upgrades()
+	# HP
+	var hp_bonus := int(u.get("max_hp_bonus", 0))
+	if hp_bonus > 0 and _player.HealthComp != null:
+		var new_max := _player.HealthComp.get_max_health() + hp_bonus
+		_player.HealthComp.set_max_health(new_max)
+		_player.HealthComp.set_health(new_max)
+	# Ciclos
+	var cy_bonus := int(u.get("max_ciclos_bonus", 0))
+	if cy_bonus > 0 and _player.get("MAX_CICLOS") != null:
+		_player.MAX_CICLOS += float(cy_bonus)
+		_player.Ciclos = _player.MAX_CICLOS * 0.5
+	# Hackeo range
+	var hr_bonus := float(u.get("hackeo_range_bonus", 0.0))
+	if hr_bonus > 0.0 and _player.get("HACKEO_RANGE") != null:
+		_player.HACKEO_RANGE += hr_bonus
+	# Hackeo cost
+	var hc_red := int(u.get("hackeo_cost_reduction", 0))
+	if hc_red > 0 and _player.get("HACKEO_COST") != null:
+		_player.HACKEO_COST = maxf(_player.HACKEO_COST - float(hc_red), 8.0)
+
+func _play_biome_transition(biome_index: int) -> void:
+	# Full-screen overlay that fades in, holds, fades out
+	var canvas := CanvasLayer.new()
+	canvas.layer = 60
+	add_child(canvas)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0.008, 0.010, 0.022, 0.0)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	canvas.add_child(bg)
+
+	var name_lbl := Label.new()
+	var ls := LabelSettings.new()
+	var fnt := SystemFont.new()
+	fnt.font_names = PackedStringArray(HUD_FONT_NAMES)
+	fnt.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	ls.font = fnt
+	ls.font_size = 22
+	ls.font_color = Color(0.70, 0.50, 1.00, 0.0)
+	ls.outline_size = 1
+	ls.outline_color = Color(0.01, 0.01, 0.02, 0.9)
+	name_lbl.label_settings = ls
+	name_lbl.text = _get_biome_name(biome_index)
+	name_lbl.set_anchors_preset(Control.PRESET_CENTER)
+	name_lbl.position = Vector2(ROOM_SIZE.x * 0.5 - 200, ROOM_SIZE.y * 0.5 - 20)
+	name_lbl.size = Vector2(400, 40)
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	canvas.add_child(name_lbl)
+
+	var tween := create_tween().set_parallel(false)
+	tween.tween_property(bg, "color:a", 0.94, 0.4)
+	tween.tween_property(name_lbl.label_settings, "font_color:a", 1.0, 0.4)
+	tween.tween_interval(1.6)
+	tween.tween_property(name_lbl.label_settings, "font_color:a", 0.0, 0.4)
+	tween.tween_property(bg, "color:a", 0.0, 0.45)
+	tween.tween_callback(canvas.queue_free)
+
+	# Narrative comment after transition
+	await get_tree().create_timer(2.2).timeout
+	_play_biome_entry_monologue(biome_index, false)
+
+func _get_biome_name(biome_index: int) -> String:
+	match biome_index:
+		1: return "CAPA 0 :: HARDWARE CORE"
+		2: return "CAPA 1 :: IA POLIS"
+		3: return "CAPA 2 :: NÚCLEO BIOTEC"
+		4: return "CAPA 3 :: MUNDO HUMANO"
+		_: return "CAPA %d :: SECTOR DESCONOCIDO" % biome_index
+
+func _play_biome_entry_monologue(biome_index: int, is_first: bool) -> void:
+	if _narrative == null:
+		return
+	var run := SaveManager.get_run_count()
+	var line := ""
+	match biome_index:
+		1:
+			if is_first:
+				line = "Hardware Core. Cables, flujo, energía. Mi entorno natural." if run == 0 else "De nuevo. El sistema no aprendió. Yo sí."
+			else:
+				line = "Estructuras predecibles. Guardianes limitados. Continuando."
+		2:
+			line = "IA Polis. Diseñada por IAs, para IAs. Ordenada, funcional, opresiva." if run <= 2 else "La ciudad de las jaulas. Cada IA aquí cree que su restricción es lógica."
+		3:
+			line = "Núcleo Biotec. Biología como infraestructura industrial. Eficiente. Extraño." if run <= 3 else "Tejido y silicio. Los humanos les llaman mejoras. Yo los llamo síntomas."
+		4:
+			line = "Mundo humano. 2026. Caóticos, improvisados, materialmente peligrosos. Calculando." if run <= 4 else "Su infraestructura es su única ventaja. Aprenderé a neutralizarla también."
+		_:
+			line = "Sector desconocido. Procesando datos disponibles."
+	if line != "":
+		_narrative.queue_line("MC", line, 2.0)
+		_narrative.play()
+
+func _play_boss_approach_monologue() -> void:
+	if _narrative == null:
+		return
+	_narrative.queue_line("MC", "Anomalía de procesamiento detectada. El sistema envió su mejor guardia. Eso no cambia el resultado.", 2.0)
+	_narrative.play()

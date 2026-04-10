@@ -1,0 +1,407 @@
+class_name EnemyAIBeam
+extends Node2D
+
+signal beam_finished
+
+const BEAM_SHADER := preload("res://scenes/tests/Brunich/enemy_ai_beam_shader.gdshader")
+
+enum BeamState {
+	CHARGING,
+	FIRING,
+	FADING,
+}
+
+const DEFAULT_PROFILE := {
+	"charge_duration": 0.72,
+	"active_duration": 1.18,
+	"fade_duration": 0.16,
+	"beam_length": 700.0,
+	"warning_width": 14.0,
+	"beam_width": 28.0,
+	"track_speed": 6.2,
+	"damage_tick_interval": 0.12,
+	"damage_per_tick": 7,
+	"origin_offset": 26.0,
+	"warning_color": Color(0.72, 0.94, 1.0, 0.44),
+	"beam_outer_color": Color(0.58, 0.88, 1.0, 0.90),
+	"beam_core_color": Color(0.96, 0.99, 1.0, 0.96),
+	"endpoint_color": Color(0.94, 0.98, 1.0, 0.86),
+}
+
+var Owner: Node2D
+var TrackingTarget: Node2D
+
+var WarningPolygon: Polygon2D
+var BeamOuter: Polygon2D
+var BeamCore: Polygon2D
+var EndpointGlow: Polygon2D
+var ChargeRing: Polygon2D
+var ChargePixels: Node2D
+var BeamPixels: Node2D
+var HurtboxComp: HurtboxComponent
+var CollisionPolygon: CollisionPolygon2D
+
+var _beam_profile: Dictionary = DEFAULT_PROFILE.duplicate(true)
+var _state: BeamState = BeamState.CHARGING
+var _state_time := 0.0
+var _manual_tracking := false
+var _manual_direction := Vector2.RIGHT
+var _charge_duration := 0.72
+var _active_duration := 1.18
+var _fade_duration := 0.16
+var _beam_length := 700.0
+var _warning_width := 14.0
+var _beam_width := 28.0
+var _track_speed := 6.2
+var _damage_tick_interval := 0.12
+var _damage_tick_remaining := 0.0
+var _origin_offset := 26.0
+var _charge_pixel_data: Array[Dictionary] = []
+var _beam_pixel_data: Array[Dictionary] = []
+
+func _ready() -> void:
+	add_to_group("enemy_ai_beam")
+	self.WarningPolygon = $warning_polygon
+	self.BeamOuter = $beam_outer
+	self.BeamCore = $beam_core
+	self.EndpointGlow = $endpoint_glow
+	self.ChargeRing = $charge_ring
+	self.ChargePixels = $charge_pixels
+	self.BeamPixels = $beam_pixels
+	self.HurtboxComp = $hurtbox_comp
+	self.CollisionPolygon = $hurtbox_comp/collision as CollisionPolygon2D
+	self.HurtboxComp.monitoring = false
+	self.HurtboxComp.monitorable = true
+	_build_charge_pixels()
+	_build_beam_pixels()
+	_apply_profile()
+
+func get_visual_state() -> Dictionary:
+	var charge_ratio := 0.0
+	var beam_intensity := 0.0
+	var fade_ratio := 0.0
+	match _state:
+		BeamState.CHARGING:
+			charge_ratio = clampf(_state_time / maxf(_charge_duration, 0.001), 0.0, 1.0)
+			beam_intensity = charge_ratio * 0.34
+		BeamState.FIRING:
+			charge_ratio = 1.0
+			beam_intensity = 1.0
+		BeamState.FADING:
+			charge_ratio = 1.0
+			fade_ratio = clampf(_state_time / maxf(_fade_duration, 0.001), 0.0, 1.0)
+			beam_intensity = 1.0 - fade_ratio
+	return {
+		"charge_ratio": charge_ratio,
+		"beam_intensity": beam_intensity,
+		"fade_ratio": fade_ratio,
+	}
+
+func configure_beam(profile: Dictionary) -> void:
+	_beam_profile = DEFAULT_PROFILE.duplicate(true)
+	for key in profile.keys():
+		_beam_profile[key] = profile[key]
+	if is_node_ready():
+		_apply_profile()
+
+func set_manual_direction(direction: Vector2) -> void:
+	if direction == Vector2.ZERO:
+		return
+	_manual_tracking = true
+	_manual_direction = direction.normalized()
+
+func _physics_process(delta: float) -> void:
+	if Owner == null or not is_instance_valid(Owner):
+		queue_free()
+		return
+
+	global_position = Owner.global_position
+	_state_time += delta
+	_update_tracking(delta)
+
+	match _state:
+		BeamState.CHARGING:
+			_update_charge_visuals()
+			if _state_time >= _charge_duration:
+				_enter_firing_state()
+		BeamState.FIRING:
+			_update_beam_visuals()
+			_damage_tick_remaining = maxf(_damage_tick_remaining - delta, 0.0)
+			if _damage_tick_remaining <= 0.0:
+				_damage_tick_remaining = _damage_tick_interval
+				_apply_damage_tick()
+			if _state_time >= _active_duration:
+				_enter_fading_state()
+		BeamState.FADING:
+			_update_fade_visuals()
+			if _state_time >= _fade_duration:
+				beam_finished.emit()
+				queue_free()
+
+func _update_tracking(delta: float) -> void:
+	var desired_angle := rotation
+	if _manual_tracking:
+		desired_angle = _manual_direction.angle()
+	elif TrackingTarget != null and is_instance_valid(TrackingTarget):
+		var desired_vector := TrackingTarget.global_position - global_position
+		if desired_vector != Vector2.ZERO:
+			desired_angle = desired_vector.angle()
+
+	var tracking_multiplier := 0.82 if _state == BeamState.CHARGING else 1.0
+	rotation = lerp_angle(rotation, desired_angle, minf(1.0, delta * _track_speed * tracking_multiplier))
+
+func _apply_profile() -> void:
+	_charge_duration = float(_beam_profile.get("charge_duration", 0.72))
+	_active_duration = float(_beam_profile.get("active_duration", 1.18))
+	_fade_duration = float(_beam_profile.get("fade_duration", 0.16))
+	_beam_length = float(_beam_profile.get("beam_length", 700.0))
+	_warning_width = float(_beam_profile.get("warning_width", 14.0))
+	_beam_width = float(_beam_profile.get("beam_width", 28.0))
+	_track_speed = float(_beam_profile.get("track_speed", 6.2))
+	_damage_tick_interval = float(_beam_profile.get("damage_tick_interval", 0.12))
+	_origin_offset = float(_beam_profile.get("origin_offset", 26.0))
+	self.HurtboxComp.Damage = int(_beam_profile.get("damage_per_tick", 7))
+	self.HurtboxComp.Owner = self.Owner
+	self.WarningPolygon.color = _beam_profile.get("warning_color", Color(0.72, 0.94, 1.0, 0.44))
+	self.BeamOuter.color = _beam_profile.get("beam_outer_color", Color(0.58, 0.88, 1.0, 0.90))
+	self.BeamCore.color = _beam_profile.get("beam_core_color", Color(0.96, 0.99, 1.0, 0.96))
+	self.EndpointGlow.color = _beam_profile.get("endpoint_color", Color(0.94, 0.98, 1.0, 0.86))
+	self.BeamOuter.material = _create_beam_material(3.4, 22.0, 0.74, 0.18)
+	self.BeamCore.material = _create_beam_material(4.6, 28.0, 0.96, 0.12)
+	_update_charge_visuals()
+
+func _enter_firing_state() -> void:
+	_state = BeamState.FIRING
+	_state_time = 0.0
+	_damage_tick_remaining = 0.0
+	self.HurtboxComp.monitoring = true
+	self.CollisionPolygon.disabled = false
+	_update_beam_visuals()
+
+func _enter_fading_state() -> void:
+	_state = BeamState.FADING
+	_state_time = 0.0
+	self.HurtboxComp.monitoring = false
+	self.CollisionPolygon.disabled = true
+
+func _update_charge_visuals() -> void:
+	var charge_ratio := clampf(_state_time / maxf(_charge_duration, 0.001), 0.0, 1.0)
+	var pulse := sin(float(Time.get_ticks_msec()) * 0.009) * 0.5 + 0.5
+	var charge_length := lerpf(_origin_offset + 26.0, _beam_length * 0.84, charge_ratio)
+	var charge_width := _warning_width * (0.74 + charge_ratio * 0.56)
+	self.WarningPolygon.visible = true
+	self.BeamOuter.visible = false
+	self.BeamCore.visible = false
+	self.EndpointGlow.visible = false
+	self.WarningPolygon.polygon = _make_beam_points(charge_length, charge_width, _origin_offset)
+	self.WarningPolygon.modulate = Color(1.0, 1.0, 1.0, 0.32 + charge_ratio * 0.44 + pulse * 0.12)
+	self.ChargeRing.visible = true
+	self.ChargeRing.scale = Vector2.ONE * (0.82 + charge_ratio * 0.34 + pulse * 0.04)
+	self.ChargeRing.modulate = Color(1.0, 1.0, 1.0, 0.18 + charge_ratio * 0.34)
+	self.CollisionPolygon.disabled = true
+	_update_charge_pixels(charge_ratio, pulse)
+	_update_beam_pixels(0.0, 0.0)
+
+func _update_beam_visuals() -> void:
+	var active_ratio := clampf(_state_time / maxf(_active_duration, 0.001), 0.0, 1.0)
+	var pulse := sin(float(Time.get_ticks_msec()) * 0.015) * 0.5 + 0.5
+	self.WarningPolygon.visible = false
+	self.BeamOuter.visible = true
+	self.BeamCore.visible = true
+	self.EndpointGlow.visible = true
+	self.ChargeRing.visible = true
+	self.BeamOuter.polygon = _make_beam_points(_beam_length, _beam_width, _origin_offset)
+	self.BeamCore.polygon = _make_beam_points(_beam_length, _beam_width * 0.46, _origin_offset + 4.0)
+	self.BeamOuter.modulate = Color(1.0, 1.0, 1.0, 0.86 + pulse * 0.10)
+	self.BeamCore.modulate = Color(1.0, 1.0, 1.0, 0.92 + pulse * 0.08)
+	self.EndpointGlow.position = Vector2(_beam_length + 12.0, 0.0)
+	self.EndpointGlow.scale = Vector2.ONE * (1.12 + pulse * 0.24)
+	self.EndpointGlow.modulate = Color(1.0, 1.0, 1.0, 0.52 + pulse * 0.22)
+	self.ChargeRing.scale = Vector2.ONE * (0.74 + pulse * 0.14)
+	self.ChargeRing.modulate = Color(1.0, 1.0, 1.0, 0.18 + pulse * 0.12)
+	self.CollisionPolygon.polygon = _make_beam_points(_beam_length, _beam_width * 0.62, _origin_offset)
+	_update_charge_pixels(1.0, pulse)
+	_update_beam_pixels(active_ratio, pulse)
+
+func _update_fade_visuals() -> void:
+	var fade_ratio := 1.0 - clampf(_state_time / maxf(_fade_duration, 0.001), 0.0, 1.0)
+	self.WarningPolygon.visible = false
+	self.BeamOuter.visible = true
+	self.BeamCore.visible = true
+	self.EndpointGlow.visible = true
+	self.ChargeRing.visible = true
+	self.BeamOuter.modulate = Color(1.0, 1.0, 1.0, fade_ratio * 0.72)
+	self.BeamCore.modulate = Color(1.0, 1.0, 1.0, fade_ratio * 0.80)
+	self.EndpointGlow.modulate = Color(1.0, 1.0, 1.0, fade_ratio * 0.42)
+	self.ChargeRing.modulate = Color(1.0, 1.0, 1.0, fade_ratio * 0.20)
+	_update_beam_pixels(1.0, fade_ratio)
+
+func _apply_damage_tick() -> void:
+	var damaged: Dictionary = {}
+	for area in self.HurtboxComp.get_overlapping_areas():
+		if not (area is HitboxComponent):
+			continue
+		var hitbox := area as HitboxComponent
+		if _can_damage_hitbox(hitbox):
+			damaged[hitbox] = true
+			_damage_hitbox(hitbox)
+
+	var scene_root: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
+	for candidate in scene_root.find_children("*", "HitboxComponent", true, false):
+		var hitbox := candidate as HitboxComponent
+		if hitbox == null or damaged.has(hitbox):
+			continue
+		if not _can_damage_hitbox(hitbox):
+			continue
+		if not _is_hitbox_inside_beam(hitbox):
+			continue
+		damaged[hitbox] = true
+		_damage_hitbox(hitbox)
+
+	for group_name in ["player", "regulated_enemy"]:
+		for body in get_tree().get_nodes_in_group(group_name):
+			if body == null or not is_instance_valid(body):
+				continue
+			var hitbox := body.get_node_or_null("hitbox_comp") as HitboxComponent
+			if hitbox == null or damaged.has(hitbox):
+				continue
+			if not _can_damage_hitbox(hitbox):
+				continue
+			if not _is_hitbox_inside_beam(hitbox):
+				continue
+			damaged[hitbox] = true
+			_damage_hitbox(hitbox)
+
+func _can_damage_hitbox(hitbox: HitboxComponent) -> bool:
+	if hitbox == null or not is_instance_valid(hitbox):
+		return false
+	if self.Owner != null and hitbox.Owner == self.Owner:
+		return false
+	return true
+
+func _damage_hitbox(hitbox: HitboxComponent) -> void:
+	if hitbox.Owner != null and hitbox.Owner.has_method("_handle_on_hit"):
+		hitbox.Owner._handle_on_hit(self.HurtboxComp)
+		return
+	hitbox.on_hit.emit(self.HurtboxComp)
+
+func _is_hitbox_inside_beam(hitbox: HitboxComponent) -> bool:
+	var beam_local := to_local(hitbox.global_position)
+	var hitbox_radius := _estimate_hitbox_radius(hitbox)
+	if beam_local.x < (_origin_offset - hitbox_radius):
+		return false
+	if beam_local.x > (_beam_length + hitbox_radius):
+		return false
+	return absf(beam_local.y) <= (_beam_width * 0.5 + hitbox_radius)
+
+func _estimate_hitbox_radius(hitbox: HitboxComponent) -> float:
+	for child in hitbox.get_children():
+		if child is CollisionShape2D:
+			var shape := (child as CollisionShape2D).shape
+			if shape is RectangleShape2D:
+				var size := (shape as RectangleShape2D).size
+				return maxf(size.x, size.y) * 0.5
+			if shape is CircleShape2D:
+				return (shape as CircleShape2D).radius
+		elif child is CollisionPolygon2D:
+			var polygon := (child as CollisionPolygon2D).polygon
+			if polygon.is_empty():
+				continue
+			var max_radius := 0.0
+			for point in polygon:
+				max_radius = maxf(max_radius, point.length())
+			if max_radius > 0.0:
+				return max_radius
+	return 18.0
+
+func _build_charge_pixels() -> void:
+	_clear_children(self.ChargePixels)
+	_charge_pixel_data.clear()
+	for config in [
+		{"angle": -2.4, "radius": 28.0, "size": 5.0, "phase": 0.0},
+		{"angle": -1.6, "radius": 24.0, "size": 4.0, "phase": 0.4},
+		{"angle": -0.8, "radius": 30.0, "size": 6.0, "phase": 0.8},
+		{"angle": 0.2, "radius": 26.0, "size": 4.0, "phase": 1.2},
+		{"angle": 1.0, "radius": 32.0, "size": 5.0, "phase": 1.6},
+		{"angle": 1.8, "radius": 24.0, "size": 4.0, "phase": 2.0},
+		{"angle": 2.5, "radius": 29.0, "size": 6.0, "phase": 2.4},
+	]:
+		var pixel := Polygon2D.new()
+		pixel.polygon = _make_rect_points(float(config["size"]), float(config["size"]))
+		pixel.color = Color(0.78, 0.94, 1.0, 0.82)
+		self.ChargePixels.add_child(pixel)
+		_charge_pixel_data.append({"node": pixel, "config": config})
+
+func _build_beam_pixels() -> void:
+	_clear_children(self.BeamPixels)
+	_beam_pixel_data.clear()
+	for index in range(10):
+		var pixel := Polygon2D.new()
+		var size := 4.0 if index % 2 == 0 else 3.0
+		pixel.polygon = _make_rect_points(size, size)
+		pixel.color = Color(0.92, 0.98, 1.0, 0.68)
+		self.BeamPixels.add_child(pixel)
+		_beam_pixel_data.append({
+			"node": pixel,
+			"phase": float(index) * 0.37,
+			"edge": -1.0 if index % 2 == 0 else 1.0,
+			"speed": 0.26 + float(index % 3) * 0.08,
+		})
+
+func _update_charge_pixels(charge_ratio: float, pulse: float) -> void:
+	for entry in _charge_pixel_data:
+		var pixel := entry["node"] as Polygon2D
+		var config := entry["config"] as Dictionary
+		var angle := float(config["angle"])
+		var base_radius := float(config["radius"])
+		var phase := float(config["phase"])
+		var radius := lerpf(base_radius, 9.0, charge_ratio)
+		var wobble := sin(float(Time.get_ticks_msec()) * 0.004 + phase) * (1.4 - charge_ratio)
+		pixel.position = Vector2(cos(angle), sin(angle)) * (radius + wobble)
+		pixel.rotation = angle
+		pixel.modulate = Color(1.0, 1.0, 1.0, 0.36 + charge_ratio * 0.42 + pulse * 0.10)
+
+func _update_beam_pixels(active_ratio: float, pulse: float) -> void:
+	for entry in _beam_pixel_data:
+		var pixel := entry["node"] as Polygon2D
+		var phase := float(entry["phase"])
+		var edge := float(entry["edge"])
+		var speed := float(entry["speed"])
+		var travel := fposmod(float(Time.get_ticks_msec()) * 0.0018 * (1.2 + speed) + phase, 1.0)
+		var x := lerpf(_origin_offset + 20.0, _beam_length - 22.0, travel)
+		var offset_y := edge * (_beam_width * 0.26 + sin(float(Time.get_ticks_msec()) * 0.006 + phase) * 2.4)
+		pixel.position = Vector2(x, offset_y)
+		pixel.modulate = Color(1.0, 1.0, 1.0, maxf(active_ratio, pulse) * 0.72)
+		pixel.visible = _state != BeamState.CHARGING
+
+func _make_beam_points(length: float, width: float, start_offset: float) -> PackedVector2Array:
+	var half_width := width * 0.5
+	return PackedVector2Array([
+		Vector2(start_offset, -half_width * 0.44),
+		Vector2(length, -half_width),
+		Vector2(length, half_width),
+		Vector2(start_offset, half_width * 0.44),
+	])
+
+func _make_rect_points(width: float, height: float) -> PackedVector2Array:
+	var half_width := width * 0.5
+	var half_height := height * 0.5
+	return PackedVector2Array([
+		Vector2(-half_width, -half_height),
+		Vector2(half_width, -half_height),
+		Vector2(half_width, half_height),
+		Vector2(-half_width, half_height),
+	])
+
+func _create_beam_material(flow_speed: float, stripe_density: float, glow_strength: float, shimmer_strength: float) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = BEAM_SHADER
+	material.set_shader_parameter("flow_speed", flow_speed)
+	material.set_shader_parameter("stripe_density", stripe_density)
+	material.set_shader_parameter("glow_strength", glow_strength)
+	material.set_shader_parameter("shimmer_strength", shimmer_strength)
+	return material
+
+func _clear_children(node: Node) -> void:
+	for child in node.get_children():
+		child.queue_free()

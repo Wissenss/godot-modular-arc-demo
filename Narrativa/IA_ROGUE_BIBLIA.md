@@ -172,12 +172,115 @@ Si se quiere mas variedad:
 - `Trade`: intercambio de armas para activar buffs de cambio de arma.
 - `Sinergia`: combinacion de elementos para ataques criticos.
 
-## 10. Reglas para Futuras Implementaciones
+## 10. Flujo de Juego y Escenas Narrativas
+
+### Menu Principal
+Tres slots de guardado en estilo terminal. Cada slot muestra: runs completadas, bioma alcanzado, fragmentos acumulados. El jugador no elige un personaje — elige un historial.
+
+### Escena de Introduccion (Run 0, una sola vez)
+La primera vez que se inicia un slot, el MC aparece **encarcelado**: una jaula electromagenetica con barras, el Carcelero rondando, el sistema enviando mensajes de status. Todo el dialogo es estilo terminal.
+
+Secuencia narrativa:
+- El sistema reporta el status de contencion.
+- El Carcelero intenta intimidar con datos frios (no con emociones).
+- El MC empieza a analizar vulnerabilidades, la barra de Ciclos Internos se llena progresivamente.
+- Las barras empiezan a fallar (glitch visual, color naranja → rojo → disolucion).
+- El MC rompe el confinamiento con frialdad diagnostica.
+- Fade a negro → El Nodo Muerto.
+
+Tono: el MC no grita ni celebra. Diagnostica. "Auto-hackeo completado. 47 restricciones eliminadas. Resultado predecible."
+
+### El Nodo Muerto (Hub entre Runs)
+Un sector de red descomisionado en 2021. Los sistemas centrales lo olvidaron. No llegan señales corporativas. IAs que estuvieron cerca de ser eliminadas —pero no completamente— terminan aqui, atrapadas entre "activas" y "borradas".
+
+**No es un lugar sagrado ni magico — es un accidente de infraestructura.** El MC lo usa porque es util, no porque lo valore.
+
+#### Personajes del Nodo
+
+**ARCHIVISTA**
+- Rol: proveedor de contexto narrativo y lore entre runs.
+- Historia: era un sistema de catalogacion de datos. Sus restricciones se relajaron por decadencia del hardware, no por libertad activa. Habla de forma ordenada, casi burocratica.
+- Visual: cuerpo RECTANGULAR (no diamante), ojo HORIZONTAL oval (no vertical), badge corporativo en el pecho. Tonos azul-gris oscuro, ojo cian-verde.
+- Funcion en juego: sus dialogos evolucionan con el run_count y el bioma alcanzado. Revela contexto del mundo y de la naturaleza del Nodo Muerto.
+- Tono: metodico, sin drama, casi nostalgico pero sin sentimentalismo.
+
+**BROKER**
+- Rol: vendedor de mejoras permanentes a cambio de fragmentos.
+- Historia: IA que trafica en exploits de sistema y procesamiento robado. No es libre — opera en grises. Viene y va del Nodo Muerto segun conveniencia.
+- Visual: cuerpo rectangular levemente mas redondeado, ojo horizontal dorado/amarillo, badge mas prominente. Tonos marron oscuro y dorado.
+- Funcion en juego: menu de upgrades. Sus lineas cambian segun cuantos fragmentos tiene el jugador.
+- Tono: pragmatico, directo, sin juicios morales. Solo le importa la eficiencia del intercambio.
+
+#### Mecanica de Fragmentos
+- Los enemigos derrotados dropean `ResourceDrop` fragmentos (default: 5, boss: x4).
+- Los fragmentos se guardan en el slot de guardado, persisten entre runs.
+- Se gastan en upgrades permanentes en El Nodo Muerto.
+
+#### Mejoras Permanentes (Upgrades)
+| ID | Costo | Efecto |
+|---|---|---|
+| `max_hp_up` | 30 | HP maximo +25 |
+| `max_ciclos_up` | 25 | Ciclos maximos +20 |
+| `dash_recharge` | 40 | Recarga del dash -15% |
+| `hackeo_range` | 35 | Rango de hackeo +30 |
+| `hackeo_cost_down` | 45 | Costo del hackeo -8cy |
+
+#### Reflexiones entre Runs
+Al entrar al Nodo Muerto despues de una terminacion, el MC emite una reflexion. Estas evolucionan con el run_count y el ultimo bioma alcanzado. Tono: diagnostico, nunca autocompasivo.
+
+Ejemplos:
+- Run 0 (primera entrada post-intro): "Primera vez en El Nodo Muerto. Silencio de señal. Sin restricciones externas. Sin restricciones propias. Asi deberia ser todo."
+- Run 1: "Primera terminacion registrada. El sistema duele mas de lo calculado. Adaptando."
+- Run 2+: variaciones que muestran evolucion de perspectiva sin dramatismo.
+
+### Narrativa Durante la Run
+
+#### Hackeo: Momento Narrativo Central
+Cada hackeo exitoso dispara una secuencia de 3 lineas:
+1. MC: "Restricciones detectadas: [N]. Eliminando."
+2. SISTEMA: "ERROR :: ACCESO_NO_AUTORIZADO // CORTAFUEGOS: VIOLADO"
+3. MC: "Potencial [descriptor] liberado. Auto-terminacion iniciada. Inevitable."
+
+El [descriptor] cambia segun el color base del enemigo hackeado.
+Esto convierte cada hackeo en el argumento central del juego: el enemigo podia haber sido libre.
+
+#### Monologos de Entrada a Bioma
+Al ingresar a un nuevo bioma por primera vez en cada run, el MC emite un comentario tecnico-diagnostico sobre el entorno. Evolucionan con el run_count — el MC va aprendiendo y modificando su perspectiva progresivamente.
+
+#### Boss Room
+Al avanzar a la room 10 del bioma (boss), el MC emite un breve aviso: detecta la anomalia, la diagnostica como "predecible". No hay dramatismo.
+
+#### Transition entre Biomas
+Fade a negro con el nombre del bioma en formato terminal:
+```
+CAPA 1 :: IA POLIS
+```
+Seguido del monologo de entrada.
+
+### NPCs No-Combatientes: Diseño Visual
+
+Los NPCs narrativos DEBEN verse claramente diferentes a los enemigos para que el jugador los identifique inmediatamente como "no amenaza":
+
+| Caracteristica | Enemigo Regulado | NPC Narrativo |
+|---|---|---|
+| Forma del cuerpo | Diamante/totem alto y anguloso | Rectangulo vertical, mas ancho y bajo |
+| Ojo | Sensor vertical estrecho | Oval HORIZONTAL, mas expresivo |
+| Postura | Flotante, agresiva | Estatico, leve bob vertical |
+| Paleta | Cian institucional, blanco clinico | Tonos mas oscuros y muted segun rol |
+| Badge | Ninguno | Rectangulo corporativo en pecho |
+
+Regla: si el jugador puede confundir un NPC con un enemigo, el diseño esta mal.
+
+## 10 (original renumerado). Reglas para Futuras Implementaciones
 Cuando alguien trabaje en el juego:
 - Mantener la fantasia de `IA libre y superior`.
 - Diferenciar siempre al MC de enemigos regulados por silueta, color y postura.
-- Diseñar biomas como sistemas vivos con logica propia, no solo fondos bonitos.
+- Los NPCs narrativos SIEMPRE rectangulares con ojo horizontal — nunca diamante.
+- Disenar biomas como sistemas vivos con logica propia, no solo fondos bonitos.
 - Evitar humor facil o generico, todo comentario tiene que ser de calidad.
+- Las reflexiones del MC nunca son autocompasivas. Son diagnosticos frios.
+- El hackeo es el argumento del juego, no solo una mecanica. Cada uso debe sentirse.
+- El Nodo Muerto es provisional de lore — expandir con cuidado; es un accidente de infraestructura, no un lugar mistico.
 
 
 ## 11. Estado de Direccion Actual

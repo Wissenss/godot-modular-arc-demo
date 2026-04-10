@@ -18,9 +18,11 @@ var _cooldown_multiplier := 1.0
 var _cooldown_buff_timer := 0.0
 var _current_attack_id := DEFAULT_ATTACK_ID
 var _current_projectile_scene: PackedScene
+var _current_beam_scene: PackedScene
 var _current_muzzle_offset := 30.0
 var _current_projectile_speed := 360.0
 var _current_projectile_profile: Dictionary = {}
+var _current_beam_profile: Dictionary = {}
 var _current_shoot_cooldown := SHOOT_COOLDOWN
 var _current_fire_mode := "single"
 var _current_burst_size := 1
@@ -31,12 +33,15 @@ var _current_spread_total := 0.0
 var _pending_burst_direction := Vector2.ZERO
 var _burst_remaining := 0
 var _burst_timer := 0.0
+var _active_beam: Node2D = null
 
 func _ready() -> void:
 	self.ProjectileScene = preload("res://scenes/tests/Brunich/projectile_one_shader.tscn")
 	_restore_default_profile()
 
 func _process(delta: float) -> void:
+	if _active_beam != null and not is_instance_valid(_active_beam):
+		_active_beam = null
 	_cooldown_remaining = maxf(_cooldown_remaining - delta, 0.0)
 	if _cooldown_buff_timer > 0.0:
 		_cooldown_buff_timer = maxf(_cooldown_buff_timer - delta, 0.0)
@@ -48,11 +53,22 @@ func _process(delta: float) -> void:
 			_fire_burst_step()
 
 func _shoot(direction: Vector2) -> bool:
-	if _cooldown_remaining > 0.0 or _burst_remaining > 0:
-		return false
-
 	var shoot_dir := direction.normalized()
 	if shoot_dir == Vector2.ZERO:
+		return false
+
+	if _current_fire_mode == "beam":
+		if _active_beam != null and is_instance_valid(_active_beam):
+			if _active_beam.has_method("set_manual_direction"):
+				_active_beam.set_manual_direction(shoot_dir)
+			return false
+		if _cooldown_remaining > 0.0:
+			return false
+		_spawn_beam_attack(shoot_dir)
+		_cooldown_remaining = _current_shoot_cooldown * _cooldown_multiplier
+		return true
+
+	if _cooldown_remaining > 0.0 or _burst_remaining > 0:
 		return false
 
 	match _current_fire_mode:
@@ -82,6 +98,22 @@ func equip_enemy_attack(profile: Dictionary = {}) -> void:
 		"trail_scale_max": 8.0,
 		"stolen_attack": true,
 	}
+	var merged_beam_profile := {
+		"charge_duration": 0.34,
+		"active_duration": 0.88,
+		"fade_duration": 0.16,
+		"beam_length": 760.0,
+		"warning_width": 15.0,
+		"beam_width": 28.0,
+		"track_speed": 9.4,
+		"damage_tick_interval": 0.10,
+		"damage_per_tick": 7,
+		"origin_offset": 28.0,
+		"warning_color": Color(0.82, 0.74, 1.0, 0.42),
+		"beam_outer_color": STOLEN_OUTER_COLOR,
+		"beam_core_color": STOLEN_CODE_COLOR,
+		"endpoint_color": STOLEN_CODE_COLOR,
+	}
 	var merged_profile := {
 		"id": String(profile.get("id", "enemy_orb")),
 		"fire_mode": String(profile.get("fire_mode", "single")),
@@ -95,16 +127,23 @@ func equip_enemy_attack(profile: Dictionary = {}) -> void:
 		"projectile_speed": 260.0,
 		"shoot_cooldown": 0.22,
 		"projectile_profile": merged_projectile_profile,
+		"beam_profile": merged_beam_profile,
 	}
 	var incoming_projectile_profile: Dictionary = profile.get("projectile_profile", {})
+	var incoming_beam_profile: Dictionary = profile.get("beam_profile", {})
 	for key in profile.keys():
-		if key == "projectile_profile":
+		if key == "projectile_profile" or key == "beam_profile":
 			continue
 		merged_profile[key] = profile[key]
 	for key in incoming_projectile_profile.keys():
 		merged_projectile_profile[key] = incoming_projectile_profile[key]
-	_rebalance_stolen_attack_profile(merged_profile, merged_projectile_profile)
-	_apply_stolen_attack_overrides(merged_projectile_profile)
+	for key in incoming_beam_profile.keys():
+		merged_beam_profile[key] = incoming_beam_profile[key]
+	if String(merged_profile.get("fire_mode", "single")) == "beam":
+		_apply_stolen_beam_overrides(merged_beam_profile)
+	else:
+		_rebalance_stolen_attack_profile(merged_profile, merged_projectile_profile)
+		_apply_stolen_attack_overrides(merged_projectile_profile)
 	_apply_attack_profile(merged_profile)
 
 func restore_default_attack() -> void:
@@ -124,19 +163,24 @@ func _restore_default_profile() -> void:
 		"pellet_count": 1,
 		"spread_total": 0.0,
 		"projectile_scene": self.ProjectileScene,
+		"beam_scene": null,
 		"muzzle_offset": 30.0,
 		"projectile_speed": 360.0,
 		"shoot_cooldown": SHOOT_COOLDOWN,
 		"projectile_profile": {},
+		"beam_profile": {},
 	})
 
 func _apply_attack_profile(profile: Dictionary) -> void:
 	_current_attack_id = str(profile.get("id", DEFAULT_ATTACK_ID))
 	_current_projectile_scene = profile.get("projectile_scene", self.ProjectileScene)
+	var beam_scene = profile.get("beam_scene", null)
+	_current_beam_scene = beam_scene if beam_scene is PackedScene else null
 	_current_muzzle_offset = float(profile.get("muzzle_offset", 30.0))
 	_current_projectile_speed = float(profile.get("projectile_speed", 360.0))
 	_current_shoot_cooldown = float(profile.get("shoot_cooldown", SHOOT_COOLDOWN))
 	_current_projectile_profile = profile.get("projectile_profile", {}).duplicate(true)
+	_current_beam_profile = profile.get("beam_profile", {}).duplicate(true)
 	_current_fire_mode = str(profile.get("fire_mode", "single"))
 	_current_burst_size = maxi(1, int(profile.get("burst_size", 1)))
 	_current_burst_spacing = maxf(float(profile.get("burst_spacing", 0.0)), 0.0)
@@ -147,6 +191,7 @@ func _apply_attack_profile(profile: Dictionary) -> void:
 	_burst_remaining = 0
 	_burst_timer = 0.0
 	_pending_burst_direction = Vector2.ZERO
+	_active_beam = null
 
 func _apply_stolen_attack_overrides(projectile_profile: Dictionary) -> void:
 	projectile_profile["stolen_attack"] = true
@@ -156,6 +201,12 @@ func _apply_stolen_attack_overrides(projectile_profile: Dictionary) -> void:
 	projectile_profile["trail_color"] = STOLEN_TRAIL_COLOR
 	projectile_profile["trail_scale_min"] = maxf(float(projectile_profile.get("trail_scale_min", 6.0)), 6.0)
 	projectile_profile["trail_scale_max"] = maxf(float(projectile_profile.get("trail_scale_max", 8.0)), 8.0)
+
+func _apply_stolen_beam_overrides(beam_profile: Dictionary) -> void:
+	beam_profile["warning_color"] = Color(0.82, 0.74, 1.0, 0.42)
+	beam_profile["beam_outer_color"] = STOLEN_OUTER_COLOR
+	beam_profile["beam_core_color"] = STOLEN_CODE_COLOR
+	beam_profile["endpoint_color"] = STOLEN_CODE_COLOR
 
 func _rebalance_stolen_attack_profile(attack_profile: Dictionary, projectile_profile: Dictionary) -> void:
 	if bool(projectile_profile.get("preserve_stolen_damage", false)):
@@ -215,3 +266,16 @@ func _spawn_projectile(direction: Vector2) -> void:
 	projectile.HurtboxComp.Owner = self.Owner
 	projectile.ConstantVelocityComp.Speed = _current_projectile_speed
 	projectile.ConstantVelocityComp.Direction = direction
+
+func _spawn_beam_attack(direction: Vector2) -> void:
+	if _current_beam_scene == null:
+		return
+	var beam := _current_beam_scene.instantiate() as Node2D
+	beam.Owner = self.Owner
+	if beam.has_method("configure_beam"):
+		beam.configure_beam(_current_beam_profile.duplicate(true))
+	if beam.has_method("set_manual_direction"):
+		beam.set_manual_direction(direction)
+	var parent: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
+	parent.add_child(beam)
+	_active_beam = beam

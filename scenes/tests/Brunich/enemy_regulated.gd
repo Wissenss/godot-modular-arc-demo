@@ -15,6 +15,8 @@ class_name EnemyRegulated extends CharacterBody2D
 @export var ProjectileAlertRange: float = 250.0
 @export var OrbitFrequency: float = 1.7
 @export var BaseColor: Color = Color(0.16, 0.82, 1.0, 1.0)
+@export var ResourceDrop: int = 5   # fragmentos dropped on death
+@export var IsBossEnemy: bool = false
 
 const HIT_COLOR := Color(1.0, 1.0, 1.0, 1.0)
 const ARENA_MIN := Vector2(54, 52)
@@ -400,6 +402,13 @@ func _do_hit_flash() -> void:
 
 func _handle_on_died() -> void:
 	_alive = false
+	# Drop resources to SaveManager (if available — not available in tests without menu)
+	var save_mgr := get_node_or_null("/root/SaveManager")
+	if save_mgr != null:
+		var drop := ResourceDrop
+		if IsBossEnemy:
+			drop = ResourceDrop * 4
+		save_mgr.add_resources(drop)
 	var players := get_tree().get_nodes_in_group("player")
 	if not players.is_empty():
 		if players[0].has_method("notify_enemy_eliminated"):

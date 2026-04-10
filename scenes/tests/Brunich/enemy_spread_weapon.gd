@@ -84,7 +84,7 @@ func get_attack_profile_for_player() -> Dictionary:
 
 func _get_projectile_profile() -> Dictionary:
 	return {
-		"damage": 10,
+		"damage": 6,
 		"life_time": 1.05,
 		"visual_scale": 0.80,
 		"outer_color": Color(1.0, 0.74, 0.05, 0.92),
@@ -97,7 +97,7 @@ func _get_projectile_profile() -> Dictionary:
 
 func _get_pickup_profile() -> Dictionary:
 	return {
-		"damage": 10,
+		"damage": 6,
 		"life_time": 1.2,
 		"visual_scale": 0.85,
 		"outer_color": Color(1.0, 0.78, 0.08, 0.92),

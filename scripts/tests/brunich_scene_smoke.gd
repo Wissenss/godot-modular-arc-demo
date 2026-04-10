@@ -197,10 +197,10 @@ func _assert_dash_system(mc: Node2D) -> void:
 	fake_hurtbox.Owner = mc.get_parent().get_node("EnemyRegulated")
 	fake_hurtbox.Damage = 12
 	mc._handle_on_hit(fake_hurtbox)
-	_expect(mc.HealthComp.get_health() == 100, "el dash debe volver invencible al MC solo mientras dura la animacion")
+	_expect(mc.HealthComp.get_health() == mc.HealthComp.get_max_health(), "el dash debe volver invencible al MC solo mientras dura la animacion")
 	await _wait_physics_frames(14)
 	mc._handle_on_hit(fake_hurtbox)
-	_expect(mc.HealthComp.get_health() < 100, "al terminar el dash el MC ya no debe seguir invencible")
+	_expect(mc.HealthComp.get_health() < mc.HealthComp.get_max_health(), "al terminar el dash el MC ya no debe seguir invencible")
 	fake_hurtbox.queue_free()
 
 	await _wait_physics_frames(12)
@@ -261,7 +261,7 @@ func _assert_room_progression_and_attack_steal(world: Node, mc: Node2D, enemy: C
 		_expect(stole, "el MC debe poder robar el ataque del enemigo con E cerca del pickup")
 		_expect(mc.Weapon.get_current_attack_id() == "enemy_orb", "al robar el ataque el MC debe equipar el arma del enemigo")
 		_expect(mc.get_current_face_expression() == "scan", "al robar el ataque el MC debe mostrar scan")
-		_expect(mc.HealthComp.get_health() == health_before_steal + 5, "cambiar de arma debe recuperar cinco por ciento de vida")
+		_expect(mc.HealthComp.get_health() == mini(mc.HealthComp.get_max_health(), health_before_steal + 50), "cambiar de arma debe recuperar veinticinco por ciento de vida")
 		_expect(mc._hack_popup_message.find("stealing.bind") != -1, "el popup de robo debe usar un codigo corto de hackeo mas natural")
 		_expect(float(mc.get("_weapon_swap_buff_timer")) >= 9.6, "cambiar de arma debe otorgar un buff de velocidad de diez segundos")
 		await _wait_frames(1)

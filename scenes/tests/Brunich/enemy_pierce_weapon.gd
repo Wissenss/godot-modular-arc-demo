@@ -3,7 +3,7 @@ class_name EnemyPierceWeapon extends Node2D
 ## Precision sniper: single slow heavy projectile that passes through the player once.
 
 const MUZZLE_OFFSET := 42.0
-const PROJECTILE_SPEED := 460.0
+const PROJECTILE_SPEED := 598.0
 const PROJECTILE_SCENE := preload("res://scenes/tests/Brunich/enemy_pierce_projectile.tscn")
 
 var Owner: CharacterBody2D
@@ -68,14 +68,14 @@ func get_attack_profile_for_player() -> Dictionary:
 		"fire_mode": "single",
 		"projectile_scene": PROJECTILE_SCENE,
 		"muzzle_offset": MUZZLE_OFFSET,
-		"projectile_speed": 435.0,
+		"projectile_speed": PROJECTILE_SPEED,
 		"shoot_cooldown": 0.28,
 		"projectile_profile": _get_pickup_profile(),
 	}
 
 func _get_projectile_profile() -> Dictionary:
 	return {
-		"damage": 35,
+		"damage": 62,
 		"life_time": 3.2,
 		"visual_scale": 1.75,
 		"outer_color": Color(0.84, 0.90, 1.0, 0.96),
@@ -84,12 +84,13 @@ func _get_projectile_profile() -> Dictionary:
 		"trail_color": Color(0.74, 0.82, 1.0, 0.65),
 		"trail_scale_min": 7.0,
 		"trail_scale_max": 11.0,
-		"pierce_count": 1,
+		"pierce_count": -1,
+		"preserve_stolen_damage": true,
 	}
 
 func _get_pickup_profile() -> Dictionary:
 	return {
-		"damage": 35,
+		"damage": 62,
 		"life_time": 3.0,
 		"visual_scale": 1.70,
 		"outer_color": Color(0.82, 0.88, 1.0, 0.96),
@@ -98,5 +99,6 @@ func _get_pickup_profile() -> Dictionary:
 		"trail_color": Color(0.72, 0.80, 1.0, 0.60),
 		"trail_scale_min": 7.0,
 		"trail_scale_max": 10.0,
-		"pierce_count": 1,
+		"pierce_count": -1,
+		"preserve_stolen_damage": true,
 	}

@@ -4,6 +4,7 @@ const ENEMY_SCENE_PATHS := [
 	"res://scenes/tests/Brunich/enemy_regulated.tscn",
 	"res://scenes/tests/Brunich/enemy_spread.tscn",
 	"res://scenes/tests/Brunich/enemy_pierce.tscn",
+	"res://scenes/tests/Brunich/enemy_ai_core.tscn",
 	"res://scenes/tests/Brunich/enemy_slowbeam.tscn",
 ]
 

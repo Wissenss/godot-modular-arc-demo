@@ -1,6 +1,0 @@
-[gd_scene format=3 uid="uid://defgo18ywp5a8"]
-
-[ext_resource type="Script" uid="uid://dq7shader1weap" path="res://scenes/tests/wissens/weapon_one_shader.gd" id="1_itd0y"]
-
-[node name="weapon_one_shader" type="Node2D"]
-script = ExtResource("1_itd0y")

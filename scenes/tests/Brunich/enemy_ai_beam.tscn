@@ -1,0 +1,47 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/tests/Brunich/enemy_ai_beam.gd" id="1_beam"]
+[ext_resource type="PackedScene" path="res://scenes/components/hurtbox_comp.tscn" id="2_hurtb"]
+
+[node name="enemy_ai_beam" type="Node2D"]
+script = ExtResource("1_beam")
+
+[node name="warning_polygon" type="Polygon2D" parent="."]
+z_index = 2
+color = Color(0.72, 0.94, 1.0, 0.42)
+polygon = PackedVector2Array(26, -4, 120, -9, 120, 9, 26, 4)
+
+[node name="beam_outer" type="Polygon2D" parent="."]
+z_index = 3
+visible = false
+color = Color(0.58, 0.88, 1.0, 0.9)
+polygon = PackedVector2Array(26, -12, 640, -18, 640, 18, 26, 12)
+
+[node name="beam_core" type="Polygon2D" parent="."]
+z_index = 4
+visible = false
+color = Color(0.96, 0.99, 1.0, 0.96)
+polygon = PackedVector2Array(30, -5, 640, -7, 640, 7, 30, 5)
+
+[node name="endpoint_glow" type="Polygon2D" parent="."]
+z_index = 5
+visible = false
+color = Color(0.94, 0.98, 1.0, 0.86)
+polygon = PackedVector2Array(0, -22, 16, 0, 0, 22, -16, 0)
+
+[node name="charge_ring" type="Polygon2D" parent="."]
+z_index = 2
+color = Color(0.60, 0.90, 1.0, 0.26)
+polygon = PackedVector2Array(-16, -16, 16, -16, 16, 16, -16, 16)
+
+[node name="charge_pixels" type="Node2D" parent="."]
+z_index = 5
+
+[node name="beam_pixels" type="Node2D" parent="."]
+z_index = 6
+
+[node name="hurtbox_comp" parent="." instance=ExtResource("2_hurtb")]
+
+[node name="collision" type="CollisionPolygon2D" parent="hurtbox_comp"]
+disabled = true
+polygon = PackedVector2Array(26, -8, 640, -12, 640, 12, 26, 8)
