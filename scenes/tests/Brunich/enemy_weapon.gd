@@ -1,11 +1,11 @@
 class_name EnemyWeapon extends Node2D
 
 const MUZZLE_OFFSET := 34.0
-const PROJECTILE_SPEED := 410.0
+const PROJECTILE_SPEED := 471.5
 const PROJECTILE_SCENE := preload("res://scenes/tests/Brunich/enemy_projectile.tscn")
 
 var Owner: CharacterBody2D
-var ShootInterval := 0.62
+var ShootInterval := 0.496
 var BurstSize := 2
 var BurstSpacing := 0.16
 var SpreadAngle := 0.14
@@ -92,19 +92,9 @@ func get_attack_profile_for_player() -> Dictionary:
 		"spread_angle": SpreadAngle,
 		"projectile_scene": PROJECTILE_SCENE,
 		"muzzle_offset": MUZZLE_OFFSET,
-		"projectile_speed": 390.0,
-		"shoot_cooldown": 0.22,
-		"projectile_profile": {
-			"damage": 14,
-			"life_time": 2.0,
-			"visual_scale": 1.28,
-			"outer_color": Color(0.18, 0.94, 1.0, 0.94),
-			"core_color": Color(0.04, 0.16, 0.32, 1.0),
-			"code_color": Color(0.92, 0.98, 1.0, 0.92),
-			"trail_color": Color(0.40, 0.92, 1.0, 0.55),
-			"trail_scale_min": 6.0,
-			"trail_scale_max": 9.0,
-		},
+		"projectile_speed": PROJECTILE_SPEED,
+		"shoot_cooldown": ShootInterval,
+		"projectile_profile": _get_projectile_profile(),
 	}
 
 func _get_projectile_profile() -> Dictionary:

@@ -86,7 +86,7 @@ const ROOM_CLI_MARGIN := Vector2(18.0, 18.0)
 const ROOM_CLI_PREFIX := "room::"
 const ROOM_CLI_NUMBER_DIGITS := 2
 const ROOM_CLI_ANIM_STEP := 0.042
-const ROOM_CLI_CURSOR_PERIOD := 0.18
+const ROOM_CLI_CURSOR_PERIOD := 0.5
 const HUD_FONT_NAMES := [
 	"Terminal",
 	"Lucida Console",
@@ -730,7 +730,7 @@ func _update_room_cli(delta: float) -> void:
 func _render_room_cli() -> void:
 	if _room_cli_label == null:
 		return
-	var cursor := "_" if _room_cli_cursor_timer < ROOM_CLI_CURSOR_PERIOD else " "
+	var cursor := "|" if _room_cli_cursor_timer < ROOM_CLI_CURSOR_PERIOD else " "
 	_room_cli_label.text = "%s%s" % [_room_cli_text, cursor]
 	if _room_cli_bg != null:
 		var pulse := sin(float(Time.get_ticks_msec()) * 0.008) * 0.5 + 0.5
@@ -815,6 +815,9 @@ func _apply_upgrades_to_player() -> void:
 	var hc_red := int(u.get("hackeo_cost_reduction", 0))
 	if hc_red > 0 and _player.get("HACKEO_COST") != null:
 		_player.HACKEO_COST = maxf(_player.HACKEO_COST - float(hc_red), 8.0)
+	var dash_factor := float(u.get("dash_recharge_factor", 0.0))
+	if dash_factor > 0.0 and _player.has_method("set_dash_recharge_factor"):
+		_player.set_dash_recharge_factor(dash_factor)
 
 func _play_biome_transition(biome_index: int) -> void:
 	# Full-screen overlay that fades in, holds, fades out

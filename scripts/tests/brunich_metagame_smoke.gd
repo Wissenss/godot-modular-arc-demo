@@ -71,26 +71,49 @@ func _test_save_manager_upgrades() -> void:
 
 	# Cada upgrade acumula correctamente
 	sm.apply_upgrade("max_hp_up")
-	_expect(int(sm.get_upgrades().get("max_hp_bonus", 0)) == int(upgrades_before.get("max_hp_bonus", 0)) + 25,
+	_expect(int(sm.get_upgrades().get("max_hp_bonus", 0)) == mini(int(upgrades_before.get("max_hp_bonus", 0)) + 25, 100),
 		"max_hp_up debe sumar 25 a max_hp_bonus")
 
 	sm.apply_upgrade("max_ciclos_up")
-	_expect(int(sm.get_upgrades().get("max_ciclos_bonus", 0)) == int(upgrades_before.get("max_ciclos_bonus", 0)) + 20,
+	_expect(int(sm.get_upgrades().get("max_ciclos_bonus", 0)) == mini(int(upgrades_before.get("max_ciclos_bonus", 0)) + 20, 80),
 		"max_ciclos_up debe sumar 20 a max_ciclos_bonus")
 
 	sm.apply_upgrade("hackeo_range")
-	_expect(float(sm.get_upgrades().get("hackeo_range_bonus", 0.0)) == float(upgrades_before.get("hackeo_range_bonus", 0.0)) + 30.0,
+	_expect(is_equal_approx(float(sm.get_upgrades().get("hackeo_range_bonus", 0.0)), minf(float(upgrades_before.get("hackeo_range_bonus", 0.0)) + 30.0, 90.0)),
 		"hackeo_range debe sumar 30 a hackeo_range_bonus")
 
 	sm.apply_upgrade("hackeo_cost_down")
-	_expect(int(sm.get_upgrades().get("hackeo_cost_reduction", 0)) == int(upgrades_before.get("hackeo_cost_reduction", 0)) + 8,
+	_expect(int(sm.get_upgrades().get("hackeo_cost_reduction", 0)) == mini(int(upgrades_before.get("hackeo_cost_reduction", 0)) + 8, 24),
 		"hackeo_cost_down debe sumar 8 a hackeo_cost_reduction")
 
-	# dash_recharge no supera 0.6
+	_expect(sm.has_method("is_upgrade_maxed"), "SaveManager debe exponer si una mejora ya llego a su tope")
+	_expect(sm.has_method("get_upgrade_cap"), "SaveManager debe exponer el tope numerico de cada mejora")
+
+	# Los upgrades deben quedar topados de forma clara
+	for _i in range(8):
+		sm.apply_upgrade("max_hp_up")
+	for _i in range(8):
+		sm.apply_upgrade("max_ciclos_up")
 	for _i in range(8):
 		sm.apply_upgrade("dash_recharge")
-	_expect(float(sm.get_upgrades().get("dash_recharge_factor", 0.0)) <= 0.6,
-		"dash_recharge_factor nunca debe superar 0.6")
+	for _i in range(8):
+		sm.apply_upgrade("hackeo_range")
+	for _i in range(8):
+		sm.apply_upgrade("hackeo_cost_down")
+
+	_expect(int(sm.get_upgrades().get("max_hp_bonus", 0)) == 100,
+		"max_hp_bonus debe toparse en +100")
+	_expect(int(sm.get_upgrades().get("max_ciclos_bonus", 0)) == 80,
+		"max_ciclos_bonus debe toparse en +80")
+	_expect(is_equal_approx(float(sm.get_upgrades().get("dash_recharge_factor", 0.0)), 0.45),
+		"dash_recharge_factor debe toparse en 0.45")
+	_expect(is_equal_approx(float(sm.get_upgrades().get("hackeo_range_bonus", 0.0)), 90.0),
+		"hackeo_range_bonus debe toparse en +90")
+	_expect(int(sm.get_upgrades().get("hackeo_cost_reduction", 0)) == 24,
+		"hackeo_cost_reduction debe toparse en 24")
+	_expect(sm.is_upgrade_maxed("max_hp_up"), "SaveManager debe marcar max_hp_up como maxeada al llegar al tope")
+	_expect(sm.is_upgrade_maxed("dash_recharge"), "SaveManager debe marcar dash_recharge como maxeada al llegar al tope")
+	_expect(int(sm.get_upgrade_cap("hackeo_cost_down")) == 24, "SaveManager debe exponer el cap correcto de hackeo_cost_down")
 
 	# Restaurar estado original de upgrades para no contaminar otros tests
 	sm.data["upgrades"] = upgrades_before

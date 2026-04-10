@@ -3,13 +3,13 @@ class_name EnemySpreadWeapon extends Node2D
 ## Shotgun-style burst: 5 pellets fired simultaneously in a wide arc.
 
 const MUZZLE_OFFSET := 30.0
-const PROJECTILE_SPEED := 420.0
+const PROJECTILE_SPEED := 483.0
 const PELLET_COUNT := 5
 const SPREAD_TOTAL := 0.70  # total arc in radians (~40 deg)
 const PROJECTILE_SCENE := preload("res://scenes/tests/Brunich/enemy_spread_projectile.tscn")
 
 var Owner: CharacterBody2D
-var ShootInterval := 1.05
+var ShootInterval := 0.84
 var PredictionLead := 0.10
 
 var _shoot_timer := 0.0
@@ -77,14 +77,14 @@ func get_attack_profile_for_player() -> Dictionary:
 		"spread_total": SPREAD_TOTAL,
 		"projectile_scene": PROJECTILE_SCENE,
 		"muzzle_offset": MUZZLE_OFFSET,
-		"projectile_speed": 400.0,
-		"shoot_cooldown": 0.16,
-		"projectile_profile": _get_pickup_profile(),
+		"projectile_speed": PROJECTILE_SPEED,
+		"shoot_cooldown": ShootInterval,
+		"projectile_profile": _get_projectile_profile(),
 	}
 
 func _get_projectile_profile() -> Dictionary:
 	return {
-		"damage": 6,
+		"damage": 2,
 		"life_time": 1.05,
 		"visual_scale": 0.80,
 		"outer_color": Color(1.0, 0.74, 0.05, 0.92),
@@ -97,7 +97,7 @@ func _get_projectile_profile() -> Dictionary:
 
 func _get_pickup_profile() -> Dictionary:
 	return {
-		"damage": 6,
+		"damage": 2,
 		"life_time": 1.2,
 		"visual_scale": 0.85,
 		"outer_color": Color(1.0, 0.78, 0.08, 0.92),

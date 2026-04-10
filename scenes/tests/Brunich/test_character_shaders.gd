@@ -3,11 +3,10 @@ extends CharacterBody2D
 const GLITCH_DURATION := 0.35
 const INVINCIBLE_DURATION := 0.6
 const MOVE_SPEED := 374.0
-const DASH_SPEED := 980.0
-const DASH_DURATION := 0.16
-const DASH_RECHARGE_FIRST := 0.52
-const DASH_RECHARGE_SECOND := 0.24
-const MAX_DASH_CHARGES := 2
+const DASH_SPEED := 1078.0
+const DASH_DURATION := 0.08
+const DASH_RECHARGE_DURATION := 1.0
+const MAX_DASH_CHARGES := 1
 const FACE_DATA_PATH := "res://art/generated/brunich/mc_face_expressions.json"
 const SCANLINE_SHADER := preload("res://scenes/tests/Brunich/scanline_shader.gdshader")
 const NARRATIVE_OVERLAY_SCRIPT := preload("res://scenes/tests/Brunich/narrative_overlay.gd")
@@ -40,6 +39,10 @@ const SCREEN_BLUR_BASE_SCALE := 0.860
 const FACE_ROOT_SCALE := 0.904
 const PARTICLE_SPEED_MULTIPLIER := 0.5
 const PARTICLE_LIFETIME_MULTIPLIER := 1.45
+const TERMINAL_FONT_NAMES := ["Terminal", "Lucida Console", "Consolas", "Courier New"]
+const HACK_POPUP_MIN_WIDTH := 120.0
+const HACK_POPUP_PADDING_X := 12.0
+const HACK_POPUP_HEIGHT := 24.0
 
 # --- Ciclos (processing capacity used for hackeo) ---
 var MAX_CICLOS := 100.0              # var so upgrades can increase it
@@ -108,6 +111,7 @@ var _slow_timer := 0.0
 var _slow_factor := 0.0
 var _hackeo_overlay
 var _hackeo_rng := RandomNumberGenerator.new()
+var DashRechargeMultiplier := 1.0
 
 func _ready() -> void:
 	add_to_group("player")
@@ -198,6 +202,7 @@ func _physics_process(delta: float) -> void:
 	if _dash_timer > 0.0:
 		self.position += _dash_direction * DASH_SPEED * delta
 		_dash_timer = maxf(_dash_timer - delta, 0.0)
+	_update_dash_recharge(delta)
 
 func _get_world_aim_dir() -> Vector2:
 	var mouse_screen := get_viewport().get_mouse_position()
@@ -358,15 +363,6 @@ func _update_visual_state(delta: float, is_attacking: bool) -> void:
 	if _invincible_timer > 0.0:
 		_invincible_timer -= delta
 
-	if DashCharges < MAX_DASH_CHARGES:
-		_dash_recharge_timer -= delta
-		if _dash_recharge_timer <= 0.0:
-			DashCharges += 1
-			if DashCharges < MAX_DASH_CHARGES:
-				_dash_recharge_timer = _get_dash_recharge_duration()
-			else:
-				_dash_recharge_timer = 0.0
-
 	_update_screen_visual(delta, is_moving, is_attacking)
 	_update_flux_feedback(pulse, flux_boost, dash_boost)
 	_update_heal_feedback()
@@ -426,7 +422,22 @@ func _has_effect_component(effect_class_name: StringName) -> bool:
 	return false
 
 func _get_dash_recharge_duration() -> float:
-	return DASH_RECHARGE_FIRST if DashCharges <= 0 else DASH_RECHARGE_SECOND
+	return DASH_RECHARGE_DURATION * clampf(DashRechargeMultiplier, 0.35, 1.0)
+
+func set_dash_recharge_factor(reduction_factor: float) -> void:
+	DashRechargeMultiplier = clampf(1.0 - reduction_factor, 0.35, 1.0)
+	if DashCharges < MAX_DASH_CHARGES:
+		_dash_recharge_timer = minf(_dash_recharge_timer, _get_dash_recharge_duration())
+
+func _update_dash_recharge(delta: float) -> void:
+	if DashCharges >= MAX_DASH_CHARGES:
+		return
+	_dash_recharge_timer = maxf(_dash_recharge_timer - delta, 0.0)
+	if _dash_recharge_timer > 0.0:
+		return
+	DashCharges += 1
+	if DashCharges < MAX_DASH_CHARGES:
+		_dash_recharge_timer = _get_dash_recharge_duration()
 
 func _update_screen_visual(delta: float, is_moving: bool, is_attacking: bool) -> void:
 	if _face_override_timer > 0.0:
@@ -712,27 +723,31 @@ func _build_hack_popup() -> void:
 	add_child(_hack_popup_root)
 
 	_hack_popup_bg = Polygon2D.new()
-	_hack_popup_bg.color = Color(0.04, 0.08, 0.15, 0.0)
-	_hack_popup_bg.polygon = PackedVector2Array([
-		Vector2(-90, -12), Vector2(90, -12), Vector2(90, 12), Vector2(-90, 12),
-	])
+	_hack_popup_bg.color = Color(0.0, 0.0, 0.0, 0.0)
 	_hack_popup_root.add_child(_hack_popup_bg)
 
 	_hack_popup_label = Label.new()
 	var label_settings := LabelSettings.new()
+	var font := SystemFont.new()
+	font.font_names = PackedStringArray(TERMINAL_FONT_NAMES)
+	font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	label_settings.font = font
 	label_settings.font_size = 13
 	label_settings.font_color = Color(0.72, 1.0, 0.94, 1.0)
+	label_settings.outline_size = 1
+	label_settings.outline_color = Color(0.01, 0.01, 0.02, 0.92)
 	_hack_popup_label.label_settings = label_settings
-	_hack_popup_label.position = Vector2(-86, -11)
-	_hack_popup_label.size = Vector2(172, 22)
 	_hack_popup_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hack_popup_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_hack_popup_root.add_child(_hack_popup_label)
+	_layout_hack_popup("stealing.bind(enemy.attack,slot_a)_")
 
 func _show_hack_popup(message: String) -> void:
 	_hack_popup_message = message
 	_hack_popup_timer = HACK_POPUP_DURATION
 	_hack_popup_root.visible = true
 	_hack_popup_root.position = Vector2(0, -36)
+	_layout_hack_popup("%s_" % message)
 	_hack_popup_label.text = ""
 
 func _update_hack_popup(delta: float) -> void:
@@ -750,8 +765,29 @@ func _update_hack_popup(delta: float) -> void:
 	_hack_popup_root.position = Vector2(0, -36 - reveal_ratio * 14.0)
 
 	var fade_alpha := 1.0 if _hack_popup_timer > 0.18 else _hack_popup_timer / 0.18
-	_hack_popup_bg.color = Color(0.04, 0.08, 0.15, 0.82 * fade_alpha)
+	_hack_popup_bg.color = Color(0.0, 0.0, 0.0, 0.84 * fade_alpha)
 	_hack_popup_label.modulate = Color(0.72, 1.0, 0.94, fade_alpha * (0.86 + sin(float(Time.get_ticks_msec()) * 0.024) * 0.14))
+
+func _layout_hack_popup(reference_text: String) -> void:
+	if _hack_popup_bg == null or _hack_popup_label == null:
+		return
+	var label_settings := _hack_popup_label.label_settings
+	var font := label_settings.font if label_settings != null else null
+	var font_size := label_settings.font_size if label_settings != null else 13
+	var text_size := Vector2(HACK_POPUP_MIN_WIDTH - HACK_POPUP_PADDING_X * 2.0, HACK_POPUP_HEIGHT)
+	if font != null:
+		text_size = font.get_string_size(reference_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size)
+	var popup_width := maxf(HACK_POPUP_MIN_WIDTH, ceilf(text_size.x) + HACK_POPUP_PADDING_X * 2.0)
+	var half_width := popup_width * 0.5
+	var half_height := HACK_POPUP_HEIGHT * 0.5
+	_hack_popup_bg.polygon = PackedVector2Array([
+		Vector2(-half_width, -half_height),
+		Vector2(half_width, -half_height),
+		Vector2(half_width, half_height),
+		Vector2(-half_width, half_height),
+	])
+	_hack_popup_label.position = Vector2(-half_width + HACK_POPUP_PADDING_X, -half_height)
+	_hack_popup_label.size = Vector2(popup_width - HACK_POPUP_PADDING_X * 2.0, HACK_POPUP_HEIGHT)
 
 func _configure_tv_screen() -> void:
 	self.ScreenGlow.polygon = PackedVector2Array([

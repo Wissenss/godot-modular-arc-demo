@@ -33,7 +33,8 @@ func _run() -> void:
 		_expect(String(weapon.get_attack_profile_for_player().get("fire_mode", "")) == "beam", "el ataque robable del AI core debe ser beam")
 		var beam_profile: Dictionary = weapon._get_beam_profile()
 		_expect(float(beam_profile.get("active_duration", 0.0)) >= 6.0, "el beam del AI core debe durar cerca de 6 segundos antes de enfriarse")
-		_expect(float(beam_profile.get("track_speed", 0.0)) >= 16.0, "el beam del AI core debe rastrear al jugador con mucha agresividad")
+		_expect(float(beam_profile.get("track_speed", 0.0)) >= 430.0, "el beam del AI core debe rastrear con una agresividad aun mayor en esta iteracion")
+		_expect(int(beam_profile.get("damage_per_tick", 0)) >= 36, "el beam del AI core debe volver a duplicar su dano por tick en esta iteracion")
 		weapon.ShootInterval = 0.05
 
 	var face_shell := enemy.get_node_or_null("face_shell") as Polygon2D
@@ -50,6 +51,8 @@ func _run() -> void:
 		return
 
 	var beam := beams[0] as Node2D
+	_expect(beam.BeamOuter.polygon.size() >= 10, "el beam del AI core debe construirse con un contorno mas quebrado y no verse como una simple franja")
+	_expect(beam.BeamCore.polygon.size() >= 10, "el nucleo del beam tambien debe sentirse como rayo y no como una luz lisa")
 	var start_rotation := beam.rotation
 	player.global_position = Vector2(940.0, 180.0)
 	await _wait_frames(10)

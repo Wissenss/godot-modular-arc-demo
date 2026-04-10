@@ -34,6 +34,7 @@ const UPGRADES := [
 ]
 
 var _layer: CanvasLayer
+var _root: Control
 var _overlay
 var _mc_poly: Polygon2D
 var _mc_glow: Polygon2D
@@ -42,6 +43,7 @@ var _npc_broker
 var _res_label: Label
 var _run_label: Label
 var _upgrade_panels: Array[Control] = []
+var _upgrade_panel_data: Array[Dictionary] = []
 var _upgrade_borders: Array[Array] = []
 var _upgrade_rects: Array[Rect2] = []   # absolute viewport rects for hit testing
 var _start_panel: Control
@@ -63,16 +65,16 @@ func _ready() -> void:
 	_layer.layer = 0
 	add_child(_layer)
 
-	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_layer.add_child(root)
+	_root = Control.new()
+	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_layer.add_child(_root)
 
 	_build_scene_visuals()
 	_build_mc_visual()
 	_build_npcs()
-	_build_hud(root)
-	_build_upgrades(root)
-	_build_start_button(root)
+	_build_hud(_root)
+	_build_upgrades(_root)
+	_build_start_button(_root)
 
 	_overlay = NARRATIVE_OVERLAY_SCRIPT.new()
 	add_child(_overlay)
@@ -230,6 +232,7 @@ func _build_upgrades(root: Control) -> void:
 	var up_x := VIEWPORT_W - 760.0
 	var up_w := 340.0
 	var up_h := 44.0
+	_upgrade_panel_data.clear()
 
 	for i in range(UPGRADES.size()):
 		var up: Dictionary = UPGRADES[i]
@@ -273,8 +276,56 @@ func _build_upgrades(root: Control) -> void:
 
 		var desc_lbl := _mk_lbl(up["desc"], 9, COLOR_DIM)
 		desc_lbl.position = Vector2(10, 24)
-		desc_lbl.size = Vector2(240, 14)
+		desc_lbl.size = Vector2(318, 14)
 		panel.add_child(desc_lbl)
+
+		_upgrade_panel_data.append({
+			"config": up,
+			"name_label": name_lbl,
+			"cost_label": cost_lbl,
+			"desc_label": desc_lbl,
+			"bg": bg,
+		})
+
+	_refresh_upgrade_panels()
+
+func _refresh_upgrade_panels() -> void:
+	var save_mgr := _get_save_manager()
+	for entry in _upgrade_panel_data:
+		var up := entry["config"] as Dictionary
+		var upgrade_id := String(up["id"])
+		var name_lbl := entry["name_label"] as Label
+		var cost_lbl := entry["cost_label"] as Label
+		var desc_lbl := entry["desc_label"] as Label
+		var is_maxed: bool = save_mgr != null and save_mgr.has_method("is_upgrade_maxed") and save_mgr.is_upgrade_maxed(upgrade_id)
+		var current_value: Variant = save_mgr.get_upgrade_current_value(upgrade_id) if save_mgr != null and save_mgr.has_method("get_upgrade_current_value") else null
+		var cap_value: Variant = save_mgr.get_upgrade_cap(upgrade_id) if save_mgr != null and save_mgr.has_method("get_upgrade_cap") else null
+		var cap_text := _format_upgrade_amount(upgrade_id, cap_value)
+		var current_text := _format_upgrade_amount(upgrade_id, current_value)
+		name_lbl.text = "%s  [MAX %s]" % [up["label"], cap_text]
+		desc_lbl.text = "%s :: actual %s" % [up["desc"], current_text]
+		if is_maxed:
+			cost_lbl.text = "MAX"
+			name_lbl.modulate = Color(0.82, 0.92, 1.0, 0.74)
+			desc_lbl.modulate = Color(0.56, 0.66, 0.80, 0.76)
+			cost_lbl.modulate = Color(0.72, 0.84, 1.0, 0.92)
+		else:
+			cost_lbl.text = "%d FRAG" % int(up["cost"])
+			name_lbl.modulate = Color.WHITE
+			desc_lbl.modulate = Color.WHITE
+			cost_lbl.modulate = Color.WHITE
+
+func _format_upgrade_amount(upgrade_id: String, value: Variant) -> String:
+	if value == null:
+		return "--"
+	match upgrade_id:
+		"dash_recharge":
+			return "-%d%%" % int(round(float(value) * 100.0))
+		"max_hp_up", "max_ciclos_up", "hackeo_cost_down":
+			return "+%d" % int(value)
+		"hackeo_range":
+			return "+%d" % int(round(float(value)))
+	return str(value)
 
 func _build_start_button(root: Control) -> void:
 	var sx := VIEWPORT_W * 0.5 - 110
@@ -364,9 +415,15 @@ func _input(event: InputEvent) -> void:
 		var up: Dictionary = UPGRADES[i]
 		var cost: int = int(up["cost"])
 		var save_mgr := _get_save_manager()
+		if save_mgr != null and save_mgr.has_method("is_upgrade_maxed") and save_mgr.is_upgrade_maxed(String(up["id"])):
+			_overlay.stop()
+			_overlay.queue_line("BROKER", "Ese modulo ya esta en MAX. No hay mas que exprimirle.", 1.4)
+			_overlay.play()
+			return
 		if save_mgr != null and save_mgr.spend_resources(cost):
 			save_mgr.apply_upgrade(up["id"])
 			_refresh_hud()
+			_refresh_upgrade_panels()
 			_overlay.stop()
 			_overlay.queue_line("BROKER", "Instalado. %s." % up["desc"], 1.4)
 			_overlay.play()

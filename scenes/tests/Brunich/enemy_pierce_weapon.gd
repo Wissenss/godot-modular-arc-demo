@@ -3,11 +3,11 @@ class_name EnemyPierceWeapon extends Node2D
 ## Precision sniper: single slow heavy projectile that passes through the player once.
 
 const MUZZLE_OFFSET := 42.0
-const PROJECTILE_SPEED := 598.0
+const PROJECTILE_SPEED := 687.7
 const PROJECTILE_SCENE := preload("res://scenes/tests/Brunich/enemy_pierce_projectile.tscn")
 
 var Owner: CharacterBody2D
-var ShootInterval := 2.85
+var ShootInterval := 2.28
 var PredictionLead := 0.28
 
 var _shoot_timer := 0.0
@@ -69,8 +69,8 @@ func get_attack_profile_for_player() -> Dictionary:
 		"projectile_scene": PROJECTILE_SCENE,
 		"muzzle_offset": MUZZLE_OFFSET,
 		"projectile_speed": PROJECTILE_SPEED,
-		"shoot_cooldown": 0.28,
-		"projectile_profile": _get_pickup_profile(),
+		"shoot_cooldown": ShootInterval,
+		"projectile_profile": _get_projectile_profile(),
 	}
 
 func _get_projectile_profile() -> Dictionary:

@@ -12,6 +12,33 @@ const DEFAULT_UPGRADES := {
 	"hackeo_range_bonus": 0.0,
 	"hackeo_cost_reduction": 0,
 }
+const UPGRADE_CONFIG := {
+	"max_hp_up": {
+		"key": "max_hp_bonus",
+		"step": 25,
+		"cap": 100,
+	},
+	"max_ciclos_up": {
+		"key": "max_ciclos_bonus",
+		"step": 20,
+		"cap": 80,
+	},
+	"dash_recharge": {
+		"key": "dash_recharge_factor",
+		"step": 0.15,
+		"cap": 0.45,
+	},
+	"hackeo_range": {
+		"key": "hackeo_range_bonus",
+		"step": 30.0,
+		"cap": 90.0,
+	},
+	"hackeo_cost_down": {
+		"key": "hackeo_cost_reduction",
+		"step": 8,
+		"cap": 24,
+	},
+}
 const DEFAULT_DATA := {
 	"run_count": 0,
 	"biome_reached": 1,
@@ -128,13 +155,55 @@ func get_upgrades() -> Dictionary:
 	var u: Variant = data.get("upgrades", {})
 	return u if u is Dictionary else DEFAULT_UPGRADES.duplicate(true)
 
-func apply_upgrade(upgrade_id: String) -> void:
+func get_upgrade_cap(upgrade_id: String) -> Variant:
+	var config: Variant = UPGRADE_CONFIG.get(upgrade_id, {})
+	if not (config is Dictionary):
+		return null
+	return (config as Dictionary).get("cap")
+
+func get_upgrade_step(upgrade_id: String) -> Variant:
+	var config: Variant = UPGRADE_CONFIG.get(upgrade_id, {})
+	if not (config is Dictionary):
+		return null
+	return (config as Dictionary).get("step")
+
+func get_upgrade_current_value(upgrade_id: String) -> Variant:
+	var config: Variant = UPGRADE_CONFIG.get(upgrade_id, {})
+	if not (config is Dictionary):
+		return null
+	var key := String((config as Dictionary).get("key", ""))
+	if key == "":
+		return null
+	var upgrades := get_upgrades()
+	return upgrades.get(key, DEFAULT_UPGRADES.get(key))
+
+func is_upgrade_maxed(upgrade_id: String) -> bool:
+	var cap: Variant = get_upgrade_cap(upgrade_id)
+	var current: Variant = get_upgrade_current_value(upgrade_id)
+	if cap == null or current == null:
+		return false
+	if cap is float or current is float:
+		return float(current) >= float(cap) - 0.0001
+	return int(current) >= int(cap)
+
+func apply_upgrade(upgrade_id: String) -> bool:
 	var u: Dictionary = get_upgrades()
-	match upgrade_id:
-		"max_hp_up":         u["max_hp_bonus"]         = int(u.get("max_hp_bonus", 0)) + 25
-		"max_ciclos_up":     u["max_ciclos_bonus"]      = int(u.get("max_ciclos_bonus", 0)) + 20
-		"dash_recharge":     u["dash_recharge_factor"]  = minf(float(u.get("dash_recharge_factor", 0.0)) + 0.15, 0.6)
-		"hackeo_range":      u["hackeo_range_bonus"]    = float(u.get("hackeo_range_bonus", 0.0)) + 30.0
-		"hackeo_cost_down":  u["hackeo_cost_reduction"] = int(u.get("hackeo_cost_reduction", 0)) + 8
+	var config: Variant = UPGRADE_CONFIG.get(upgrade_id, {})
+	if not (config is Dictionary):
+		return false
+	var config_dict := config as Dictionary
+	var key := String(config_dict.get("key", ""))
+	if key == "":
+		return false
+	var current_value: Variant = u.get(key, DEFAULT_UPGRADES.get(key))
+	var previous_value: Variant = current_value
+	if current_value is float or config_dict.get("step") is float or config_dict.get("cap") is float:
+		current_value = minf(float(current_value) + float(config_dict.get("step", 0.0)), float(config_dict.get("cap", 0.0)))
+	else:
+		current_value = mini(int(current_value) + int(config_dict.get("step", 0)), int(config_dict.get("cap", 0)))
+	if previous_value == current_value:
+		return false
+	u[key] = current_value
 	data["upgrades"] = u
 	save_current()
+	return true

@@ -22,8 +22,14 @@ func _run() -> void:
 
 	var floor_tiles := world.get_node("floor_tiles") as TileMapLayer
 	var mc: Node2D = world.get_node("MC") as Node2D
-	var enemy: CharacterBody2D = world.get_node("EnemyRegulated") as CharacterBody2D
-	var weapon: Node = enemy.get_node("enemy_weapon")
+	var enemy: CharacterBody2D = null
+	if world.has_method("get_active_room_enemies"):
+		var active_enemies: Array[CharacterBody2D] = world.get_active_room_enemies()
+		if not active_enemies.is_empty():
+			enemy = active_enemies[0]
+	if enemy == null:
+		enemy = world.get_node_or_null("EnemyRegulated") as CharacterBody2D
+	var weapon: Node = enemy.get_node("enemy_weapon") if enemy != null else null
 	var camera := mc.get_node("camera") as Camera2D
 	var hud_layer := world.get_node_or_null("hud_layer") as CanvasLayer
 	var hud_root := hud_layer.get_node_or_null("hud_root") as Control if hud_layer != null else null
@@ -49,8 +55,11 @@ func _run() -> void:
 			top_open_cells += 1
 	_expect(top_open_cells >= 3, "la parte superior debe tener una apertura clara para continuar al siguiente cuarto")
 
-	_expect(enemy.HealthComp.get_max_health() >= 240, "el enemigo debe tener mucha mas vida que la version actual")
-	_expect(weapon.ShootInterval <= 0.75, "el enemigo debe disparar mucho mas seguido")
+	_expect(enemy != null, "la arena debe arrancar con al menos un enemigo activo")
+	if enemy != null:
+		_expect(enemy.HealthComp.get_max_health() >= 240, "el enemigo debe tener mucha mas vida que la version actual")
+	if weapon != null:
+		_expect(weapon.ShootInterval <= 0.75, "el enemigo debe disparar mucho mas seguido")
 
 	var shader_text := FileAccess.get_file_as_string("res://scenes/tests/Brunich/glitch_shader.gdshader")
 	var mc_source := FileAccess.get_file_as_string("res://scenes/tests/Brunich/test_character_shaders.gd")
@@ -189,12 +198,18 @@ func _assert_dash_system(mc: Node2D) -> void:
 	await _wait_physics_frames(1)
 	var third_dash: bool = mc.request_dash(Vector2.RIGHT)
 	_expect(first_dash, "el primer dash debe funcionar")
-	_expect(second_dash, "el segundo dash debe funcionar seguido")
-	_expect(not third_dash, "el tercer dash consecutivo debe quedar bloqueado hasta recargar")
+	_expect(not second_dash, "con una sola carga, el segundo dash debe quedar bloqueado hasta recargar")
+	_expect(not third_dash, "con una sola carga, el tercer intento tambien debe seguir bloqueado")
 	_expect(mc.global_position.distance_to(start_pos) > 20.0, "el dash debe mover de forma visible al MC")
+	_expect(mc.global_position.distance_to(start_pos) < 110.0, "el dash debe recorrer aproximadamente la mitad de distancia que antes")
 
 	var fake_hurtbox := HurtboxComponent.new()
-	fake_hurtbox.Owner = mc.get_parent().get_node("EnemyRegulated")
+	var enemy_owner: Node = null
+	for candidate in mc.get_tree().get_nodes_in_group("regulated_enemy"):
+		if candidate != null and is_instance_valid(candidate):
+			enemy_owner = candidate
+			break
+	fake_hurtbox.Owner = enemy_owner
 	fake_hurtbox.Damage = 12
 	mc._handle_on_hit(fake_hurtbox)
 	_expect(mc.HealthComp.get_health() == mc.HealthComp.get_max_health(), "el dash debe volver invencible al MC solo mientras dura la animacion")
@@ -203,12 +218,10 @@ func _assert_dash_system(mc: Node2D) -> void:
 	_expect(mc.HealthComp.get_health() < mc.HealthComp.get_max_health(), "al terminar el dash el MC ya no debe seguir invencible")
 	fake_hurtbox.queue_free()
 
-	await _wait_physics_frames(12)
-	_expect(mc.DashCharges == 0, "las dos cargas no deben regresar demasiado pronto")
-	await _wait_physics_frames(8)
-	_expect(mc.DashCharges == 1, "la primera carga de dash debe recargarse antes que antes pero por separado")
-	await _wait_physics_frames(16)
-	_expect(mc.DashCharges == 2, "la segunda carga de dash debe terminar de recargarse claramente mas rapido que la configuracion anterior")
+	await _wait_physics_frames(24)
+	_expect(mc.DashCharges == 0, "la unica carga de dash no debe regresar demasiado pronto")
+	await _wait_physics_frames(42)
+	_expect(mc.DashCharges == 1, "la unica carga de dash debe recargarse tras cerca de 1 segundo")
 
 func _assert_player_face_stays_stable_while_moving(mc: Node2D) -> void:
 	if not mc.has_node("face_pixels"):
@@ -263,6 +276,12 @@ func _assert_room_progression_and_attack_steal(world: Node, mc: Node2D, enemy: C
 		_expect(mc.get_current_face_expression() == "scan", "al robar el ataque el MC debe mostrar scan")
 		_expect(mc.HealthComp.get_health() == mini(mc.HealthComp.get_max_health(), health_before_steal + 50), "cambiar de arma debe recuperar veinticinco por ciento de vida")
 		_expect(mc._hack_popup_message.find("stealing.bind") != -1, "el popup de robo debe usar un codigo corto de hackeo mas natural")
+		var hack_popup_bg := mc.get("_hack_popup_bg") as Polygon2D
+		var hack_popup_label := mc.get("_hack_popup_label") as Label
+		if hack_popup_bg != null and hack_popup_label != null and hack_popup_bg.polygon.size() >= 2:
+			var popup_width := absf(hack_popup_bg.polygon[1].x - hack_popup_bg.polygon[0].x)
+			_expect(hack_popup_bg.color.r <= 0.02 and hack_popup_bg.color.g <= 0.02 and hack_popup_bg.color.b <= 0.02, "la franja del popup de robo debe verse negra")
+			_expect(popup_width >= hack_popup_label.size.x + 20.0, "la franja del popup de robo debe cubrir el ancho del texto")
 		_expect(float(mc.get("_weapon_swap_buff_timer")) >= 9.6, "cambiar de arma debe otorgar un buff de velocidad de diez segundos")
 		await _wait_frames(1)
 		mc._update_visual_state(0.016, false)
@@ -282,7 +301,7 @@ func _assert_room_progression_and_attack_steal(world: Node, mc: Node2D, enemy: C
 		if stolen_projectile != null:
 			var outer_ring := stolen_projectile.get_node("outer_ring") as Polygon2D
 			var trail_particles := stolen_projectile.get_node("trail_particles") as CPUParticles2D
-			_expect(stolen_projectile.HurtboxComp.Damage >= 48, "si un ataque robado es mas lento y pesado, debe compensar con mas dano")
+			_expect(stolen_projectile.HurtboxComp.Damage == 22, "el primer ataque robado debe conservar exactamente el dano base del enemigo")
 			_expect(outer_ring.color.b > outer_ring.color.g and outer_ring.color.r > 0.35, "el proyectil robado debe diferenciarse con una circunferencia morada del MC")
 			_expect(trail_particles.color.r > 0.45 and trail_particles.color.b > trail_particles.color.g, "todos los ataques robados deben mantener una estela morada del MC")
 	await _wait_physics_frames(40)

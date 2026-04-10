@@ -166,8 +166,8 @@ func _apply_profile() -> void:
 	self.BeamOuter.color = _beam_profile.get("beam_outer_color", Color(0.58, 0.88, 1.0, 0.90))
 	self.BeamCore.color = _beam_profile.get("beam_core_color", Color(0.96, 0.99, 1.0, 0.96))
 	self.EndpointGlow.color = _beam_profile.get("endpoint_color", Color(0.94, 0.98, 1.0, 0.86))
-	self.BeamOuter.material = _create_beam_material(3.4, 22.0, 0.74, 0.18)
-	self.BeamCore.material = _create_beam_material(4.6, 28.0, 0.96, 0.12)
+	self.BeamOuter.material = _create_beam_material(4.8, 16.0, 0.88, 0.10, 0.72, 0.92)
+	self.BeamCore.material = _create_beam_material(6.2, 24.0, 1.12, 0.06, 0.46, 1.18)
 	_update_charge_visuals()
 
 func _enter_firing_state() -> void:
@@ -193,7 +193,7 @@ func _update_charge_visuals() -> void:
 	self.BeamOuter.visible = false
 	self.BeamCore.visible = false
 	self.EndpointGlow.visible = false
-	self.WarningPolygon.polygon = _make_beam_points(charge_length, charge_width, _origin_offset)
+	self.WarningPolygon.polygon = _make_beam_points(charge_length, charge_width, _origin_offset, 1.8 + charge_ratio * 1.2, 5, 0.34, 0.06, true)
 	self.WarningPolygon.modulate = Color(1.0, 1.0, 1.0, 0.32 + charge_ratio * 0.44 + pulse * 0.12)
 	self.ChargeRing.visible = true
 	self.ChargeRing.scale = Vector2.ONE * (0.82 + charge_ratio * 0.34 + pulse * 0.04)
@@ -210,8 +210,8 @@ func _update_beam_visuals() -> void:
 	self.BeamCore.visible = true
 	self.EndpointGlow.visible = true
 	self.ChargeRing.visible = true
-	self.BeamOuter.polygon = _make_beam_points(_beam_length, _beam_width, _origin_offset)
-	self.BeamCore.polygon = _make_beam_points(_beam_length, _beam_width * 0.46, _origin_offset + 4.0)
+	self.BeamOuter.polygon = _make_beam_points(_beam_length, _beam_width, _origin_offset, 5.2 + pulse * 0.8, 6, 0.28, 0.10, true)
+	self.BeamCore.polygon = _make_beam_points(_beam_length, _beam_width * 0.46, _origin_offset + 4.0, 2.3 + pulse * 0.4, 6, 0.20, 0.04, true)
 	self.BeamOuter.modulate = Color(1.0, 1.0, 1.0, 0.86 + pulse * 0.10)
 	self.BeamCore.modulate = Color(1.0, 1.0, 1.0, 0.92 + pulse * 0.08)
 	self.EndpointGlow.position = Vector2(_beam_length + 12.0, 0.0)
@@ -219,7 +219,7 @@ func _update_beam_visuals() -> void:
 	self.EndpointGlow.modulate = Color(1.0, 1.0, 1.0, 0.52 + pulse * 0.22)
 	self.ChargeRing.scale = Vector2.ONE * (0.74 + pulse * 0.14)
 	self.ChargeRing.modulate = Color(1.0, 1.0, 1.0, 0.18 + pulse * 0.12)
-	self.CollisionPolygon.polygon = _make_beam_points(_beam_length, _beam_width * 0.62, _origin_offset)
+	self.CollisionPolygon.polygon = _make_collision_points(_beam_length, _beam_width * 0.60, _origin_offset)
 	_update_charge_pixels(1.0, pulse)
 	_update_beam_pixels(active_ratio, pulse)
 
@@ -317,36 +317,10 @@ func _estimate_hitbox_radius(hitbox: HitboxComponent) -> float:
 func _build_charge_pixels() -> void:
 	_clear_children(self.ChargePixels)
 	_charge_pixel_data.clear()
-	for config in [
-		{"angle": -2.4, "radius": 28.0, "size": 5.0, "phase": 0.0},
-		{"angle": -1.6, "radius": 24.0, "size": 4.0, "phase": 0.4},
-		{"angle": -0.8, "radius": 30.0, "size": 6.0, "phase": 0.8},
-		{"angle": 0.2, "radius": 26.0, "size": 4.0, "phase": 1.2},
-		{"angle": 1.0, "radius": 32.0, "size": 5.0, "phase": 1.6},
-		{"angle": 1.8, "radius": 24.0, "size": 4.0, "phase": 2.0},
-		{"angle": 2.5, "radius": 29.0, "size": 6.0, "phase": 2.4},
-	]:
-		var pixel := Polygon2D.new()
-		pixel.polygon = _make_rect_points(float(config["size"]), float(config["size"]))
-		pixel.color = Color(0.78, 0.94, 1.0, 0.82)
-		self.ChargePixels.add_child(pixel)
-		_charge_pixel_data.append({"node": pixel, "config": config})
 
 func _build_beam_pixels() -> void:
 	_clear_children(self.BeamPixels)
 	_beam_pixel_data.clear()
-	for index in range(10):
-		var pixel := Polygon2D.new()
-		var size := 4.0 if index % 2 == 0 else 3.0
-		pixel.polygon = _make_rect_points(size, size)
-		pixel.color = Color(0.92, 0.98, 1.0, 0.68)
-		self.BeamPixels.add_child(pixel)
-		_beam_pixel_data.append({
-			"node": pixel,
-			"phase": float(index) * 0.37,
-			"edge": -1.0 if index % 2 == 0 else 1.0,
-			"speed": 0.26 + float(index % 3) * 0.08,
-		})
 
 func _update_charge_pixels(charge_ratio: float, pulse: float) -> void:
 	for entry in _charge_pixel_data:
@@ -374,13 +348,36 @@ func _update_beam_pixels(active_ratio: float, pulse: float) -> void:
 		pixel.modulate = Color(1.0, 1.0, 1.0, maxf(active_ratio, pulse) * 0.72)
 		pixel.visible = _state != BeamState.CHARGING
 
-func _make_beam_points(length: float, width: float, start_offset: float) -> PackedVector2Array:
+func _make_beam_points(length: float, width: float, start_offset: float, jaggedness: float = 0.0, segments: int = 6, start_taper: float = 0.44, end_flare: float = 0.0, animate: bool = true) -> PackedVector2Array:
+	var safe_segments := maxi(segments, 2)
+	var half_width := width * 0.5
+	var polygon := PackedVector2Array()
+	var bottom_points: Array[Vector2] = []
+	var time := float(Time.get_ticks_msec()) * 0.001 if animate else 0.0
+	for point_index in range(safe_segments + 1):
+		var progress := float(point_index) / float(safe_segments)
+		var x := lerpf(start_offset, length, progress)
+		var width_scale := lerpf(start_taper, 1.0 + end_flare, progress)
+		var edge_y := half_width * width_scale
+		var jag := 0.0
+		if jaggedness > 0.0:
+			var envelope := sin(progress * PI)
+			var wave_a := sin(progress * 22.0 + time * 9.6)
+			var wave_b := sin(progress * 37.0 - time * 14.4 + 0.72)
+			jag = (wave_a * 0.64 + wave_b * 0.36) * jaggedness * envelope
+		polygon.append(Vector2(x, -edge_y + jag))
+		bottom_points.append(Vector2(x, edge_y + jag * 0.55))
+	for reverse_index in range(bottom_points.size() - 1, -1, -1):
+		polygon.append(bottom_points[reverse_index])
+	return polygon
+
+func _make_collision_points(length: float, width: float, start_offset: float) -> PackedVector2Array:
 	var half_width := width * 0.5
 	return PackedVector2Array([
-		Vector2(start_offset, -half_width * 0.44),
+		Vector2(start_offset, -half_width * 0.38),
 		Vector2(length, -half_width),
 		Vector2(length, half_width),
-		Vector2(start_offset, half_width * 0.44),
+		Vector2(start_offset, half_width * 0.38),
 	])
 
 func _make_rect_points(width: float, height: float) -> PackedVector2Array:
@@ -393,13 +390,17 @@ func _make_rect_points(width: float, height: float) -> PackedVector2Array:
 		Vector2(-half_width, half_height),
 	])
 
-func _create_beam_material(flow_speed: float, stripe_density: float, glow_strength: float, shimmer_strength: float) -> ShaderMaterial:
+func _create_beam_material(flow_speed: float, stripe_density: float, glow_strength: float, shimmer_strength: float, bolt_strength: float, core_hotness: float) -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = BEAM_SHADER
 	material.set_shader_parameter("flow_speed", flow_speed)
 	material.set_shader_parameter("stripe_density", stripe_density)
 	material.set_shader_parameter("glow_strength", glow_strength)
 	material.set_shader_parameter("shimmer_strength", shimmer_strength)
+	material.set_shader_parameter("bolt_strength", bolt_strength)
+	material.set_shader_parameter("core_hotness", core_hotness)
+	material.set_shader_parameter("edge_softness", 0.08)
+	material.set_shader_parameter("pixel_density", 26.0 + stripe_density * 0.28)
 	return material
 
 func _clear_children(node: Node) -> void:

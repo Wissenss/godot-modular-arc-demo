@@ -3,11 +3,11 @@ class_name EnemySlowbeamWeapon extends Node2D
 ## Control beam: slow heavy projectile that applies a speed penalty on hit.
 
 const MUZZLE_OFFSET := 32.0
-const PROJECTILE_SPEED := 395.0
+const PROJECTILE_SPEED := 454.25
 const PROJECTILE_SCENE := preload("res://scenes/tests/Brunich/enemy_slowbeam_projectile.tscn")
 
 var Owner: CharacterBody2D
-var ShootInterval := 1.55
+var ShootInterval := 1.24
 var PredictionLead := 0.06
 
 var _shoot_timer := 0.0
@@ -68,9 +68,9 @@ func get_attack_profile_for_player() -> Dictionary:
 		"fire_mode": "single",
 		"projectile_scene": PROJECTILE_SCENE,
 		"muzzle_offset": MUZZLE_OFFSET,
-		"projectile_speed": 380.0,
-		"shoot_cooldown": 0.14,
-		"projectile_profile": _get_pickup_profile(),
+		"projectile_speed": PROJECTILE_SPEED,
+		"shoot_cooldown": ShootInterval,
+		"projectile_profile": _get_projectile_profile(),
 	}
 
 func _get_projectile_profile() -> Dictionary:

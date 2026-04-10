@@ -191,18 +191,18 @@ func _update_body_materials(charge_ratio: float, beam_intensity: float) -> void:
 		shield_material.set_shader_parameter("haze_strength", 0.10 + charge_ratio * 0.05 + beam_intensity * 0.10)
 
 func _update_core_breath(pulse: float, prep_ratio: float, charge_ratio: float, beam_intensity: float) -> void:
-	var breath_scale := 0.96 + pulse * 0.08 + prep_ratio * 0.02 + charge_ratio * 0.06 + beam_intensity * 0.08
-	var fill_scale := 0.97 + pulse * 0.08 + charge_ratio * 0.05 + beam_intensity * 0.06
-	var glass_scale := 0.98 + pulse * 0.10 + charge_ratio * 0.06 + beam_intensity * 0.10
+	var breath_scale := 0.98 + pulse * 0.12 + prep_ratio * 0.03 + charge_ratio * 0.08 + beam_intensity * 0.12
+	var fill_scale := 0.99 + pulse * 0.10 + charge_ratio * 0.07 + beam_intensity * 0.10
+	var glass_scale := 1.0 + pulse * 0.12 + charge_ratio * 0.08 + beam_intensity * 0.14
 	($face_shell as Polygon2D).scale = _face_shell_base_scale * breath_scale
 	($face_fill as Polygon2D).scale = _face_fill_base_scale * fill_scale
 	($face_glass as Polygon2D).scale = _face_glass_base_scale * glass_scale
-	($face_shell as Polygon2D).position = _face_shell_base_position + Vector2(-0.3 + pulse * 0.8, -0.8 + pulse * 1.2 - charge_ratio * 1.4)
-	($face_fill as Polygon2D).position = _face_fill_base_position + Vector2(-0.2 + pulse * 0.6, -0.6 + pulse * 1.0 - charge_ratio * 1.0)
-	($face_glass as Polygon2D).position = _face_glass_base_position + Vector2(0.0, -0.4 + pulse * 0.8 - charge_ratio * 0.9)
+	($face_shell as Polygon2D).position = _face_shell_base_position + Vector2(-0.4 + pulse * 1.0, -1.2 + pulse * 1.6 - charge_ratio * 1.8)
+	($face_fill as Polygon2D).position = _face_fill_base_position + Vector2(-0.3 + pulse * 0.8, -0.9 + pulse * 1.3 - charge_ratio * 1.3)
+	($face_glass as Polygon2D).position = _face_glass_base_position + Vector2(0.0, -0.6 + pulse * 1.0 - charge_ratio * 1.1)
 	if self.AIGlyphRoot != null:
-		self.AIGlyphRoot.scale = _glyph_root_base_scale * (0.94 + pulse * 0.08 + charge_ratio * 0.06 + beam_intensity * 0.10)
-		self.AIGlyphRoot.position = _glyph_root_base_position + Vector2(-0.7 + pulse * 1.1, -0.9 + pulse * 1.0 - charge_ratio * 1.4)
+		self.AIGlyphRoot.scale = _glyph_root_base_scale * (0.96 + pulse * 0.10 + charge_ratio * 0.08 + beam_intensity * 0.12)
+		self.AIGlyphRoot.position = _glyph_root_base_position + Vector2(-0.9 + pulse * 1.2, -1.1 + pulse * 1.2 - charge_ratio * 1.6)
 
 func _build_core_glow() -> void:
 	var face_points := _get_face_display_points()
@@ -212,13 +212,13 @@ func _build_core_glow() -> void:
 		Color(0.34, 0.86, 1.0, 0.28),
 		face_points
 	)
-	self.AICoreGlow.scale = Vector2.ONE * 1.42
+	self.AICoreGlow.scale = Vector2.ONE * 1.56
 	self.AICoreGlow.material = _create_energy_material(6.0, 1.1, 0.34, 0.46)
 
 func _update_core_glow(pulse: float, charge_ratio: float, beam_intensity: float) -> void:
 	if self.AICoreGlow == null:
 		return
-	self.AICoreGlow.scale = Vector2.ONE * (1.30 + pulse * 0.14 + charge_ratio * 0.18 + beam_intensity * 0.24)
+	self.AICoreGlow.scale = Vector2.ONE * (1.38 + pulse * 0.18 + charge_ratio * 0.22 + beam_intensity * 0.28)
 	self.AICoreGlow.color = Color(
 		0.28 + pulse * 0.10 + beam_intensity * 0.06,
 		0.78 + pulse * 0.10 + charge_ratio * 0.10 + beam_intensity * 0.12,
@@ -236,14 +236,14 @@ func _build_corner_brackets() -> void:
 	_clear_children(self.AICornerBrackets)
 	_bracket_parts.clear()
 	var pieces := [
-		{"pos": Vector2(-13.8, -17.8), "size": Vector2(6.2, 1.8)},
-		{"pos": Vector2(-16.0, -15.6), "size": Vector2(1.8, 6.2)},
-		{"pos": Vector2(13.8, -17.8), "size": Vector2(6.2, 1.8)},
-		{"pos": Vector2(16.0, -15.6), "size": Vector2(1.8, 6.2)},
-		{"pos": Vector2(-13.8, 17.8), "size": Vector2(6.2, 1.8)},
-		{"pos": Vector2(-16.0, 15.6), "size": Vector2(1.8, 6.2)},
-		{"pos": Vector2(13.8, 17.8), "size": Vector2(6.2, 1.8)},
-		{"pos": Vector2(16.0, 15.6), "size": Vector2(1.8, 6.2)},
+		{"pos": Vector2(-13.4, -22.8), "size": Vector2(8.0, 2.0)},
+		{"pos": Vector2(-19.0, -17.2), "size": Vector2(2.0, 8.0)},
+		{"pos": Vector2(13.4, -22.8), "size": Vector2(8.0, 2.0)},
+		{"pos": Vector2(19.0, -17.2), "size": Vector2(2.0, 8.0)},
+		{"pos": Vector2(-13.4, 22.8), "size": Vector2(8.0, 2.0)},
+		{"pos": Vector2(-19.0, 17.2), "size": Vector2(2.0, 8.0)},
+		{"pos": Vector2(13.4, 22.8), "size": Vector2(8.0, 2.0)},
+		{"pos": Vector2(19.0, 17.2), "size": Vector2(2.0, 8.0)},
 	]
 	for piece in pieces:
 		var bracket := Polygon2D.new()
