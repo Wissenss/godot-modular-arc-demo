@@ -1,0 +1,63 @@
+{
+  "tile_size": 32,
+  "order": [
+    "floor_plain",
+    "floor_panel",
+    "floor_grid",
+    "pit_deep",
+    "wall_bevel",
+    "panel_gold",
+    "door_hatch",
+    "neon_strip"
+  ],
+  "crops": {
+    "floor_plain": [
+      18,
+      1082,
+      382,
+      1496
+    ],
+    "floor_panel": [
+      404,
+      1082,
+      786,
+      1496
+    ],
+    "floor_grid": [
+      995,
+      258,
+      1175,
+      438
+    ],
+    "pit_deep": [
+      1194,
+      1082,
+      1572,
+      1496
+    ],
+    "wall_bevel": [
+      1598,
+      1082,
+      1976,
+      1496
+    ],
+    "panel_gold": [
+      2002,
+      1082,
+      2378,
+      1496
+    ],
+    "door_hatch": [
+      2392,
+      1082,
+      2750,
+      1496
+    ],
+    "neon_strip": [
+      1608,
+      132,
+      1968,
+      430
+    ]
+  }
+}

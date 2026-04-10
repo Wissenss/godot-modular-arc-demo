@@ -4,12 +4,15 @@ class_name ConstantVelocityComponent extends Node
 
 var Owner : Node2D
 var Direction := Vector2(0, 0)
-var Speed := 10
+var Speed := 10.0
 
 func _ready() -> void:
 	pass
 
 func _physics_process(delta: float) -> void:
+	if self.Owner == null:
+		return
+
 	var velocity = self.Direction * self.Speed * delta
 	
 	self.Owner.position += velocity

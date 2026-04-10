@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IA Rogue / Variantes de Animación</title>
+  <style>
+    :root {
+      --bg0: #07101c;
+      --bg1: #0c1730;
+      --bg2: #121d39;
+      --panel: rgba(8, 15, 29, 0.86);
+      --line: rgba(133, 161, 215, 0.18);
+      --text: #e6ecfb;
+      --muted: #95a4c7;
+      --good: #7fe7ff;
+      --soft: rgba(127, 231, 255, 0.12);
+      font-family: "Segoe UI", "Inter", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(76, 113, 255, 0.14), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(32, 214, 255, 0.10), transparent 30%),
+        linear-gradient(180deg, var(--bg0), var(--bg1) 50%, var(--bg2));
+    }
+
+    .wrap {
+      width: min(1220px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 34px 0 44px;
+    }
+
+    .hero,
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(16, 26, 50, 0.92), var(--panel));
+      box-shadow: 0 28px 64px rgba(0, 0, 0, 0.42);
+      backdrop-filter: blur(8px);
+    }
+
+    .hero {
+      padding: 28px 30px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--good);
+      background: var(--soft);
+    }
+
+    h1 {
+      margin: 14px 0 10px;
+      font-size: clamp(28px, 4.8vw, 46px);
+      line-height: 1.02;
+      letter-spacing: -0.035em;
+    }
+
+    p, li {
+      color: var(--muted);
+      line-height: 1.56;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(120, 228, 255, 0.07), transparent 32%),
+        linear-gradient(135deg, rgba(255,255,255,0.05), transparent 40%);
+      pointer-events: none;
+    }
+
+    .title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .title h2 {
+      margin: 0;
+      font-size: 23px;
+      letter-spacing: -0.03em;
+    }
+
+    .pill {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 6px 10px;
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+      white-space: nowrap;
+    }
+
+    .pill.recommended {
+      color: var(--good);
+      background: var(--soft);
+      border-color: rgba(127, 231, 255, 0.20);
+    }
+
+    .stage {
+      position: relative;
+      height: 280px;
+      border-radius: 18px;
+      border: 1px solid rgba(138, 163, 212, 0.14);
+      overflow: hidden;
+      background:
+        radial-gradient(circle at center, rgba(34, 103, 255, 0.10), transparent 38%),
+        linear-gradient(180deg, rgba(5, 10, 20, 0.96), rgba(9, 14, 25, 0.92));
+      margin-bottom: 14px;
+    }
+
+    .stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(rgba(121, 146, 205, 0.06) 1px, transparent 1px) 0 0 / 100% 32px,
+        linear-gradient(90deg, rgba(121, 146, 205, 0.04) 1px, transparent 1px) 0 0 / 32px 100%;
+      opacity: 0.68;
+    }
+
+    .stage svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      position: relative;
+      z-index: 1;
+    }
+
+    .label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .footer-note {
+      margin-top: 22px;
+      padding: 18px 20px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(8, 14, 28, 0.78);
+    }
+
+    .mc-shadow { fill: rgba(3, 6, 14, 0.54); }
+    .mc-body { fill: #0c1220; }
+    .mc-core-frame { fill: rgba(18, 25, 43, 0.96); stroke: rgba(137, 218, 255, 0.38); stroke-width: 1.2; }
+    .mc-core-fill { fill: rgba(70, 112, 255, 0.18); }
+    .mc-inner-line { fill: rgba(228, 241, 255, 0.88); }
+    .particle-main { fill: rgba(110, 214, 255, 0.88); }
+    .particle-alt { fill: rgba(108, 62, 255, 0.52); }
+    .pulse-ring { fill: none; stroke: rgba(129, 232, 255, 0.26); stroke-width: 1.4; }
+
+    .enemy-shell { fill: rgba(10, 26, 46, 0.92); stroke: rgba(117, 222, 255, 0.28); stroke-width: 1.2; }
+    .enemy-halo { fill: rgba(89, 224, 255, 0.12); stroke: rgba(146, 240, 255, 0.22); stroke-width: 1.2; }
+    .enemy-sensor { fill: rgba(236, 249, 255, 0.96); }
+
+    .variant-a .mcRig { animation: idleFloat 2.8s ease-in-out infinite; transform-origin: 120px 138px; }
+    .variant-a .corePulse { animation: squarePulse 2.05s ease-in-out infinite; transform-origin: 120px 138px; }
+    .variant-a .scanLine { animation: lineSweep 1.9s ease-in-out infinite; transform-origin: 120px 138px; }
+    .variant-a .orbitA { animation: orbitArc 3.2s linear infinite; transform-origin: 120px 138px; }
+    .variant-a .orbitB { animation: orbitArc 3.2s linear infinite reverse; transform-origin: 120px 138px; }
+
+    .variant-b .mcRig { animation: rogueOffset 2.0s cubic-bezier(.55,.08,.39,.98) infinite; transform-origin: 120px 138px; }
+    .variant-b .corePulse { animation: splitPulse 1.55s ease-in-out infinite; transform-origin: 120px 138px; }
+    .variant-b .pulseRing { animation: ringBurst 1.55s ease-in-out infinite; transform-origin: 120px 138px; }
+    .variant-b .orbitA { animation: jitterOrb 1.4s ease-in-out infinite; transform-origin: center; }
+    .variant-b .orbitB { animation: jitterOrb 1.4s ease-in-out infinite .22s; transform-origin: center; }
+    .variant-b .scanLine { animation: rogueScan 1.5s linear infinite; transform-origin: 120px 138px; }
+
+    .variant-c .mcRig { animation: authorityTilt 2.45s ease-in-out infinite; transform-origin: 120px 138px; }
+    .variant-c .corePulse { animation: shardPulse 2.1s ease-in-out infinite; transform-origin: 120px 138px; }
+    .variant-c .scanLine { animation: lineSweep 2.4s ease-in-out infinite; transform-origin: 120px 138px; }
+    .variant-c .orbitA { animation: slowSlip 2.3s ease-in-out infinite; transform-origin: center; }
+    .variant-c .orbitB { animation: slowSlip 2.3s ease-in-out infinite .28s; transform-origin: center; }
+
+    .enemyRig { animation: enemyHum 2.4s ease-in-out infinite; transform-origin: 260px 142px; }
+
+    @keyframes idleFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+    }
+
+    @keyframes squarePulse {
+      0%, 100% { opacity: 0.85; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.05); }
+    }
+
+    @keyframes lineSweep {
+      0%, 100% { opacity: 0.35; transform: translateY(0px) scaleX(1); }
+      50% { opacity: 1; transform: translateY(-4px) scaleX(1.12); }
+    }
+
+    @keyframes orbitArc {
+      from { transform: rotate(0deg) translateX(15px) rotate(0deg); }
+      to { transform: rotate(360deg) translateX(15px) rotate(-360deg); }
+    }
+
+    @keyframes rogueOffset {
+      0%, 100% { transform: translate(0px, 0px) rotate(0deg); }
+      18% { transform: translate(-1px, -2px) rotate(-1deg); }
+      36% { transform: translate(2px, -4px) rotate(1.4deg); }
+      62% { transform: translate(-2px, 1px) rotate(-0.8deg); }
+      82% { transform: translate(1px, -3px) rotate(0.6deg); }
+    }
+
+    @keyframes splitPulse {
+      0%, 100% { opacity: 0.9; transform: scale(1); }
+      48% { opacity: 1; transform: scale(1.08) skewX(-1deg); }
+      52% { opacity: 0.82; transform: scale(0.98) skewX(1deg); }
+    }
+
+    @keyframes ringBurst {
+      0%, 100% { opacity: 0.12; transform: scale(1); }
+      45% { opacity: 0.42; transform: scale(1.08); }
+      80% { opacity: 0.06; transform: scale(1.14); }
+    }
+
+    @keyframes jitterOrb {
+      0%, 100% { transform: translate(0px, 0px) scale(1); opacity: 0.22; }
+      35% { transform: translate(6px, -7px) scale(1.16); opacity: 0.88; }
+      70% { transform: translate(-5px, 5px) scale(0.86); opacity: 0.14; }
+    }
+
+    @keyframes rogueScan {
+      0%, 14%, 100% { opacity: 0.2; transform: translateY(0px) scaleX(1); }
+      18% { opacity: 1; transform: translateY(-5px) scaleX(1.22); }
+      22% { opacity: 0.36; transform: translateY(1px) scaleX(0.86); }
+      58% { opacity: 0.82; transform: translateY(3px) scaleX(1.06); }
+    }
+
+    @keyframes authorityTilt {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-4px) rotate(-0.6deg); }
+    }
+
+    @keyframes shardPulse {
+      0%, 100% { opacity: 0.9; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.04); }
+    }
+
+    @keyframes slowSlip {
+      0%, 100% { transform: translate(0px, 0px); opacity: 0.2; }
+      50% { transform: translate(4px, -4px); opacity: 0.7; }
+    }
+
+    @keyframes enemyHum {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-3px); }
+    }
+
+    @media (max-width: 720px) {
+      .wrap { width: min(100vw - 20px, 1220px); padding-top: 20px; }
+      .hero, .card { border-radius: 20px; }
+      .hero { padding: 22px 20px; }
+      .stage { height: 250px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <span class="eyebrow">IA Rogue / Base actual de Brunich</span>
+      <h1>Variantes que conservan el diseño bueno y le agregan personalidad rogue por animación</h1>
+      <p>
+        Todas estas propuestas mantienen la lectura compacta, profesional y pequeña del MC. No cambian la silueta base
+        ni le meten una punta rara. El cambio está en el <strong>cuadrado central</strong>, el <strong>ritmo de respiración</strong>,
+        los <strong>micro desfases</strong> y las <strong>órbitas/partículas</strong>.
+      </p>
+      <p>
+        También dejo un enemigo regulado a la derecha solo para comparar energía: él se mueve limpio y obediente; el MC debe sentirse
+        más vivo, más libre y más inestable sin perder nivel visual.
+      </p>
+    </section>
+
+    <section class="cards">
+      <article class="card variant-a">
+        <div class="title">
+          <h2>01 / Rogue Pulse</h2>
+          <span class="pill">Más elegante</span>
+        </div>
+        <div class="stage">
+          <svg viewBox="0 0 360 280" aria-label="Rogue Pulse">
+            <g class="mcRig">
+              <ellipse class="mc-shadow" cx="120" cy="194" rx="34" ry="10"></ellipse>
+              <rect class="mc-body" x="98" y="116" width="44" height="44" rx="2"></rect>
+              <g class="corePulse">
+                <rect class="mc-core-frame" x="105" y="123" width="30" height="30" rx="1"></rect>
+                <rect class="mc-core-fill" x="109" y="127" width="22" height="22" rx="1"></rect>
+              </g>
+              <rect class="mc-inner-line scanLine" x="111" y="136" width="18" height="3" rx="1.2"></rect>
+              <circle class="particle-main orbitA" cx="120" cy="138" r="2.9"></circle>
+              <circle class="particle-alt orbitB" cx="120" cy="138" r="3.2"></circle>
+            </g>
+
+            <g class="enemyRig">
+              <polygon class="enemy-halo" points="260,100 292,124 292,160 260,184 228,160 228,124"></polygon>
+              <polygon class="enemy-shell" points="260,112 280,142 260,172 240,142"></polygon>
+              <rect class="enemy-sensor" x="256" y="127" width="8" height="30" rx="3"></rect>
+            </g>
+          </svg>
+        </div>
+        <span class="label">Qué cambia</span>
+        <ul>
+          <li>El cuadrado central respira como un núcleo con pulso.</li>
+          <li>La línea interna hace un escaneo fino y ejecutivo.</li>
+          <li>Se siente más premium y más consciente que caótico.</li>
+        </ul>
+      </article>
+
+      <article class="card variant-b">
+        <div class="title">
+          <h2>02 / Breakaway Square</h2>
+          <span class="pill recommended">Recomendada</span>
+        </div>
+        <div class="stage">
+          <svg viewBox="0 0 360 280" aria-label="Breakaway Square">
+            <g class="mcRig">
+              <ellipse class="mc-shadow" cx="120" cy="194" rx="35" ry="10"></ellipse>
+              <circle class="pulse-ring" cx="120" cy="138" r="24"></circle>
+              <rect class="mc-body" x="98" y="116" width="44" height="44" rx="2"></rect>
+              <g class="corePulse">
+                <rect class="mc-core-frame" x="105" y="123" width="30" height="30" rx="1"></rect>
+                <rect class="mc-core-fill" x="109" y="127" width="9" height="9" rx="1"></rect>
+                <rect class="mc-core-fill" x="122" y="127" width="9" height="9" rx="1"></rect>
+                <rect class="mc-core-fill" x="109" y="140" width="9" height="9" rx="1"></rect>
+                <rect class="mc-core-fill" x="122" y="140" width="9" height="9" rx="1"></rect>
+              </g>
+              <rect class="mc-inner-line scanLine" x="111" y="136" width="18" height="3" rx="1.2"></rect>
+              <circle class="particle-main orbitA" cx="143" cy="126" r="3.2"></circle>
+              <circle class="particle-alt orbitB" cx="95" cy="151" r="2.9"></circle>
+            </g>
+
+            <g class="enemyRig">
+              <polygon class="enemy-halo" points="260,100 292,124 292,160 260,184 228,160 228,124"></polygon>
+              <polygon class="enemy-shell" points="260,108 278,118 286,142 278,166 260,176 242,166 234,142 242,118"></polygon>
+              <rect class="enemy-sensor" x="256" y="126" width="8" height="32" rx="3"></rect>
+            </g>
+          </svg>
+        </div>
+        <span class="label">Qué cambia</span>
+        <ul>
+          <li>Mismo cuadrado, pero el centro se fragmenta en 4 módulos.</li>
+          <li>El cuerpo hace micro desvíos y se siente menos obediente.</li>
+          <li>La personalidad rogue viene de descontrol pequeño, no de romper la forma.</li>
+        </ul>
+      </article>
+
+      <article class="card variant-c">
+        <div class="title">
+          <h2>03 / Circuit Authority</h2>
+          <span class="pill">Más sobrio</span>
+        </div>
+        <div class="stage">
+          <svg viewBox="0 0 360 280" aria-label="Circuit Authority">
+            <g class="mcRig">
+              <ellipse class="mc-shadow" cx="120" cy="194" rx="34" ry="10"></ellipse>
+              <rect class="mc-body" x="98" y="116" width="44" height="44" rx="2"></rect>
+              <g class="corePulse">
+                <rect class="mc-core-frame" x="105" y="123" width="30" height="30" rx="1"></rect>
+                <rect class="mc-core-fill" x="110" y="128" width="20" height="20" rx="1"></rect>
+                <rect class="mc-inner-line" x="113" y="132" width="14" height="2.6" rx="1"></rect>
+                <rect class="mc-inner-line" x="113" y="138" width="10" height="2.4" rx="1"></rect>
+                <rect class="mc-inner-line" x="113" y="144" width="16" height="2.4" rx="1"></rect>
+              </g>
+              <circle class="particle-main orbitA" cx="144" cy="135" r="2.7"></circle>
+              <circle class="particle-alt orbitB" cx="96" cy="141" r="2.7"></circle>
+            </g>
+
+            <g class="enemyRig">
+              <polygon class="enemy-halo" points="260,102 290,118 290,166 260,182 230,166 230,118"></polygon>
+              <polygon class="enemy-shell" points="260,110 276,126 276,158 260,174 244,158 244,126"></polygon>
+              <rect class="enemy-sensor" x="256" y="126" width="8" height="32" rx="3"></rect>
+            </g>
+          </svg>
+        </div>
+        <span class="label">Qué cambia</span>
+        <ul>
+          <li>El cuadrado central gana un patrón interno tipo circuito.</li>
+          <li>La animación es más autoritaria y menos nerviosa.</li>
+          <li>Es la opción más ejecutiva, pero menos rogue que la 02.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="footer-note">
+      <p>
+        Si quieres que la siguiente implementación se sienta correcta, yo iría por la <strong>02 / Breakaway Square</strong>:
+        misma base visual que ya te gusta, un centro más interesante y animación rogue sin agrandar ni deformar el personaje.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

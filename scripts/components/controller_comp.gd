@@ -28,4 +28,13 @@ func _get_aim_direction() -> Vector2:
 	return direction.normalized()
 
 func _is_shoot_pressed() -> bool:
-	return Input.is_action_pressed("ui_accept")
+	return _is_attack_pressed()
+
+func _is_attack_pressed() -> bool:
+	return Input.is_action_pressed("attack")
+
+func _is_dash_pressed() -> bool:
+	return Input.is_action_just_pressed("dash")
+
+func _is_steal_pressed() -> bool:
+	return Input.is_action_just_pressed("steal")

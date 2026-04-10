@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/tests/Brunich/enemy_ai_core_weapon.gd" id="1_weapon"]
+
+[node name="enemy_ai_core_weapon" type="Node2D"]
+script = ExtResource("1_weapon")

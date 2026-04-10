@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://brn_intro00001"]
+
+[ext_resource type="Script" path="res://scenes/tests/Brunich/intro_cinematic.gd" id="1"]
+
+[node name="IntroCinematic" type="Node2D"]
+script = ExtResource("1")
