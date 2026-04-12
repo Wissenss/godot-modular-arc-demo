@@ -3,13 +3,13 @@ class_name EnemySpreadWeapon extends Node2D
 ## Shotgun-style burst: 5 pellets fired simultaneously in a wide arc.
 
 const MUZZLE_OFFSET := 30.0
-const PROJECTILE_SPEED := 483.0
+const PROJECTILE_SPEED := 410.55
 const PELLET_COUNT := 5
-const SPREAD_TOTAL := 0.455  # 35% tighter than the prior spread
+const SPREAD_TOTAL := 0.38675  # 15% tighter than the current spread
 const PROJECTILE_SCENE := preload("res://scenes/tests/Brunich/enemy_spread_projectile.tscn")
 
 var Owner: CharacterBody2D
-var ShootInterval := 0.195
+var ShootInterval := 0.2294117647
 var PredictionLead := 0.10
 
 var _shoot_timer := 0.0
@@ -84,7 +84,9 @@ func get_attack_profile_for_player() -> Dictionary:
 
 func _get_projectile_profile() -> Dictionary:
 	return {
-		"damage": 3,
+		# Rounded up because damage is integer-based in the current combat pipeline.
+		# 3 -> 3.3 becomes 4 for a visible 10%+ effective bump.
+		"damage": 4,
 		"life_time": 1.05,
 		"visual_scale": 0.80,
 		"outer_color": Color(1.0, 0.74, 0.05, 0.92),
@@ -97,7 +99,7 @@ func _get_projectile_profile() -> Dictionary:
 
 func _get_pickup_profile() -> Dictionary:
 	return {
-		"damage": 3,
+		"damage": 4,
 		"life_time": 1.2,
 		"visual_scale": 0.85,
 		"outer_color": Color(1.0, 0.78, 0.08, 0.92),

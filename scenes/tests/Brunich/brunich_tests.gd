@@ -75,24 +75,24 @@ const HUD_HEALTH_COLOR := Color(0.88, 0.16, 0.16, 0.96)
 const HUD_MANA_COLOR := Color(0.06, 0.72, 0.94, 0.96)
 const HUD_THOUGHT_COLOR := Color(0.64, 0.30, 1.0, 0.96)
 const HUD_TEXT_COLOR := Color(0.90, 0.94, 1.0, 0.96)
-const HUD_TEXT_OUTLINE := Color(0.03, 0.04, 0.08, 0.96)
+const HUD_TEXT_OUTLINE := Color(0.02, 0.03, 0.06, 0.98)
 const HUD_BAR_LABEL_WIDTH := 28.0
 const HUD_FRAME_OFFSET := Vector2(30.0, 0.0)
 const HUD_BAR_INSET := Vector2(32.0, 2.0)
 const HUD_VALUE_GAP := 10.0
-const HUD_VALUE_WIDTH := 96.0
+const HUD_VALUE_WIDTH := 108.0
 const HUD_VALUE_DIGITS := 3
 const HUD_THOUGHT_BAR_SIZE := Vector2(128.0, 10.0)
-const HUD_THOUGHT_VALUE_WIDTH := 76.0
+const HUD_THOUGHT_VALUE_WIDTH := 102.0
 const HUD_THOUGHT_MARGIN := Vector2(18.0, 18.0)
-const HUD_THOUGHT_PANEL_HEIGHT := 18.0
+const HUD_THOUGHT_PANEL_HEIGHT := 22.0
 const ROOM_CLI_PANEL_SIZE := Vector2(194.0, 28.0)
 const ROOM_CLI_MARGIN := Vector2(18.0, 18.0)
 const ROOM_CLI_PREFIX := "room::"
 const ROOM_CLI_NUMBER_DIGITS := 2
 const ROOM_CLI_ANIM_STEP := 0.042
 const ROOM_CLI_CURSOR_PERIOD := 0.5
-const HUD_FONT_NAMES := ["Terminal"]
+const PIXEL_FONT := preload("res://art/fonts/Silkscreen-Regular.ttf")
 enum RoomCliAnimState {
 	IDLE,
 	ERASE,
@@ -593,9 +593,9 @@ func _create_hud_bar(label_text: String, local_position: Vector2, fill_color: Co
 
 	var label := Label.new()
 	label.name = "%s_label" % label_text.to_lower()
-	label.label_settings = _create_terminal_label_settings(HUD_TEXT_COLOR, 11, 1)
+	label.label_settings = _create_terminal_label_settings(HUD_TEXT_COLOR, 13, 1)
 	label.text = label_text
-	label.position = Vector2(0.0, -1.0)
+	label.position = Vector2(0.0, -2.0)
 	label.size = Vector2(HUD_BAR_LABEL_WIDTH, HUD_BAR_SIZE.y + 2.0)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	container.add_child(label)
@@ -623,9 +623,10 @@ func _create_hud_bar(label_text: String, local_position: Vector2, fill_color: Co
 
 	var value_label := Label.new()
 	value_label.name = "%s_value" % label_text.to_lower()
-	value_label.label_settings = _create_terminal_label_settings(HUD_TEXT_COLOR, 11, 1)
-	value_label.position = Vector2(background.position.x + HUD_BAR_SIZE.x + HUD_VALUE_GAP, -1.0)
+	value_label.label_settings = _create_terminal_label_settings(HUD_TEXT_COLOR, 13, 1)
+	value_label.position = Vector2(background.position.x + HUD_BAR_SIZE.x + HUD_VALUE_GAP, -2.0)
 	value_label.size = Vector2(HUD_VALUE_WIDTH, HUD_BAR_SIZE.y + 2.0)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	container.add_child(value_label)
 
@@ -655,9 +656,9 @@ func _create_thought_hud_bar() -> Dictionary:
 
 	var label := Label.new()
 	label.name = "at_label"
-	label.label_settings = _create_terminal_label_settings(HUD_THOUGHT_COLOR, 10, 1)
+	label.label_settings = _create_terminal_label_settings(HUD_THOUGHT_COLOR, 12, 1)
 	label.text = "AT"
-	label.position = Vector2(0.0, -1.0)
+	label.position = Vector2(0.0, -2.0)
 	label.size = Vector2(24.0, HUD_THOUGHT_PANEL_HEIGHT)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	container.add_child(label)
@@ -665,14 +666,14 @@ func _create_thought_hud_bar() -> Dictionary:
 	var frame := ColorRect.new()
 	frame.name = "at_frame"
 	frame.color = Color(0.10, 0.04, 0.16, 0.94)
-	frame.position = Vector2(26.0, 2.0)
+	frame.position = Vector2(26.0, 3.0)
 	frame.size = HUD_THOUGHT_BAR_SIZE + Vector2(4.0, 4.0)
 	container.add_child(frame)
 
 	var background := ColorRect.new()
 	background.name = "at_bg"
 	background.color = Color(0.03, 0.02, 0.06, 0.92)
-	background.position = Vector2(28.0, 4.0)
+	background.position = Vector2(28.0, 5.0)
 	background.size = HUD_THOUGHT_BAR_SIZE
 	container.add_child(background)
 
@@ -685,9 +686,10 @@ func _create_thought_hud_bar() -> Dictionary:
 
 	var value_label := Label.new()
 	value_label.name = "at_value"
-	value_label.label_settings = _create_terminal_label_settings(HUD_TEXT_COLOR, 11, 1)
-	value_label.position = Vector2(background.position.x + HUD_THOUGHT_BAR_SIZE.x + 8.0, -1.0)
+	value_label.label_settings = _create_terminal_label_settings(HUD_TEXT_COLOR, 13, 1)
+	value_label.position = Vector2(background.position.x + HUD_THOUGHT_BAR_SIZE.x + 12.0, -2.0)
 	value_label.size = Vector2(HUD_THOUGHT_VALUE_WIDTH, HUD_THOUGHT_PANEL_HEIGHT)
+	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	container.add_child(value_label)
 
@@ -754,12 +756,7 @@ func _build_room_cli() -> void:
 
 func _create_terminal_label_settings(font_color: Color, font_size: int, outline_size: int) -> LabelSettings:
 	var settings := LabelSettings.new()
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(HUD_FONT_NAMES)
-	font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	font.hinting = TextServer.HINTING_NONE
-	font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	settings.font = font
+	settings.font = PIXEL_FONT
 	settings.font_size = font_size
 	settings.font_color = font_color
 	settings.outline_size = outline_size
@@ -871,8 +868,8 @@ func _update_hud_bars() -> void:
 		current_thought = float(_player.get_accelerated_thought_charge())
 		max_thought = maxf(float(_player.get_accelerated_thought_max_charge()), 0.001)
 		thought_ratio = clampf(current_thought / max_thought, 0.0, 1.0)
-	_thought_fill.size.x = HUD_BAR_SIZE.x * thought_ratio
-	_thought_fill.size.y = HUD_BAR_SIZE.y
+	_thought_fill.size.x = HUD_THOUGHT_BAR_SIZE.x * thought_ratio
+	_thought_fill.size.y = HUD_THOUGHT_BAR_SIZE.y
 	if _thought_value_label != null:
 		_thought_value_label.text = _format_hud_decimal_counter(current_thought, max_thought)
 

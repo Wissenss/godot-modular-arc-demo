@@ -6,11 +6,12 @@ class_name NarrativeOverlay extends CanvasLayer
 signal on_sequence_complete
 signal on_line_complete(line_index: int)
 
-const CHAR_RATE := 24.0
+const CHAR_RATE := 20.16
 const LINE_HOLD_DEFAULT := 1.6
 const PANEL_HEIGHT := 176.0
 const TYPE_CURSOR_PERIOD := 0.56
 const ADVANCE_CURSOR_PERIOD := 0.86
+const CLOSE_DURATION := 0.28
 const SPACE_DELAY := 0.010
 const PUNCTUATION_DELAY := 0.048
 const CLAUSE_DELAY := 0.085
@@ -25,9 +26,9 @@ const SPEAKER_COLORS: Dictionary = {
 	"IA_REGULADA":  Color(0.28, 0.80, 1.00),
 	"":             Color(0.72, 0.78, 0.90),
 }
-const FONT_NAMES := ["Terminal"]
+const PIXEL_FONT := preload("res://art/fonts/Silkscreen-Regular.ttf")
 
-enum _State { IDLE, TYPING, WAITING }
+enum _State { IDLE, TYPING, WAIT_CONFIRM, WAITING, CLOSING }
 
 var _queue: Array = []
 var _idx := 0
@@ -39,6 +40,8 @@ var _emitted := false
 var _blink := 0.0
 var _owns_tree_pause := false
 var _real_time_prev := 0.0
+var _close_time := 0.0
+var _debug_speedup_override := -1
 
 var _panel: ColorRect
 var _header: Label
@@ -53,6 +56,7 @@ func _ready() -> void:
 	_real_time_prev = _get_real_time_seconds()
 	_build()
 	visible = false
+	_set_panel_open_ratio(1.0)
 
 func _build() -> void:
 	_panel = ColorRect.new()
@@ -94,12 +98,7 @@ func _build() -> void:
 func _mk_lbl(sz: int, col: Color) -> Label:
 	var lbl := Label.new()
 	var ls := LabelSettings.new()
-	var fnt := SystemFont.new()
-	fnt.font_names = PackedStringArray(FONT_NAMES)
-	fnt.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	fnt.hinting = TextServer.HINTING_NONE
-	fnt.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	ls.font = fnt
+	ls.font = PIXEL_FONT
 	ls.font_size = sz
 	ls.font_color = col
 	ls.outline_size = 1
@@ -121,14 +120,22 @@ func play() -> void:
 		return
 	_idx = 0
 	_state = _State.IDLE
+	_close_time = 0.0
+	_real_time_prev = _get_real_time_seconds()
+	_blink = 0.0
 	_start_line()
 	visible = true
+	_set_panel_open_ratio(1.0)
+	_panel.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	_set_tree_pause_lock(true)
 
 func stop() -> void:
 	_state = _State.IDLE
 	_queue.clear()
 	visible = false
+	_close_time = 0.0
+	_real_time_prev = _get_real_time_seconds()
+	_set_panel_open_ratio(1.0)
 	_set_tree_pause_lock(false)
 
 func skip_current() -> void:
@@ -139,6 +146,8 @@ func receive_advance_input() -> void:
 		return
 	match _state:
 		_State.TYPING:
+			return
+		_State.WAIT_CONFIRM:
 			_reveal_current_line()
 		_State.WAITING:
 			_prompt.text = ""
@@ -157,10 +166,20 @@ func debug_get_state_name() -> String:
 	match _state:
 		_State.TYPING:
 			return "typing"
+		_State.WAIT_CONFIRM:
+			return "wait_confirm"
 		_State.WAITING:
 			return "waiting"
+		_State.CLOSING:
+			return "closing"
 		_:
 			return "idle"
+
+func debug_set_speedup_pressed_for_tests(active: bool) -> void:
+	_debug_speedup_override = 1 if active else 0
+
+func debug_is_closing() -> bool:
+	return _state == _State.CLOSING
 
 # ── Internal ─────────────────────────────────────────────────────────────────
 
@@ -182,16 +201,23 @@ func _start_line() -> void:
 	_speaker.label_settings = ls_copy
 	_speaker.text = "speaker::%s" % speaker.to_lower() if speaker != "" else "speaker::system"
 	_body.text = ""
-	_prompt.text = "[ click izq / espacio :: mostrar ]"
+	_prompt.text = "[ mantén click izq / espacio :: acelerar ]"
 
 func _next() -> void:
 	_idx += 1
+	if _idx >= _queue.size():
+		_begin_close()
+		return
 	_start_line()
 
 func _finish() -> void:
 	_state = _State.IDLE
 	_queue.clear()
 	visible = false
+	_close_time = 0.0
+	_real_time_prev = _get_real_time_seconds()
+	_set_panel_open_ratio(1.0)
+	_panel.modulate = Color(1.0, 1.0, 1.0, 1.0)
 	_set_tree_pause_lock(false)
 	on_sequence_complete.emit()
 
@@ -203,12 +229,14 @@ func _process(delta: float) -> void:
 	_real_time_prev = real_now
 	_blink += real_delta
 
-	var line: Dictionary = _queue[_idx]
-	var full: String = line.get("text", "")
-
 	match _state:
 		_State.TYPING:
-			_type_accum += real_delta
+			if _idx >= _queue.size():
+				_begin_close()
+				return
+			var line: Dictionary = _queue[_idx]
+			var full: String = line.get("text", "")
+			_type_accum += real_delta * _get_typing_speed_multiplier()
 			var safety := 0
 			while _visible_chars < full.length() and _type_accum >= _next_char_delay and safety < 512:
 				_type_accum -= _next_char_delay
@@ -217,10 +245,44 @@ func _process(delta: float) -> void:
 				safety += 1
 			_body.text = full.substr(0, _visible_chars) + _get_cursor(TYPE_CURSOR_PERIOD)
 			if _visible_chars >= full.length():
-				_reveal_current_line()
+				_enter_wait_confirm_state()
+
+		_State.WAIT_CONFIRM:
+			if _idx >= _queue.size():
+				_begin_close()
+				return
+			var line: Dictionary = _queue[_idx]
+			var full: String = line.get("text", "")
+			_body.text = full + _get_cursor(ADVANCE_CURSOR_PERIOD)
 
 		_State.WAITING:
+			if _idx >= _queue.size():
+				_begin_close()
+				return
+			var line: Dictionary = _queue[_idx]
+			var full: String = line.get("text", "")
 			_body.text = full + _get_cursor(ADVANCE_CURSOR_PERIOD)
+
+		_State.CLOSING:
+			_close_time += real_delta
+			var close_ratio := 1.0 - clampf(_close_time / CLOSE_DURATION, 0.0, 1.0)
+			_set_panel_open_ratio(close_ratio)
+			_panel.modulate = Color(1.0, 1.0, 1.0, 0.74 + close_ratio * 0.26)
+			if close_ratio <= 0.0:
+				_finish()
+
+func _enter_wait_confirm_state() -> void:
+	if _idx >= _queue.size():
+		return
+	var line: Dictionary = _queue[_idx]
+	var full: String = line.get("text", "")
+	_visible_chars = full.length()
+	_body.text = full + _get_cursor(ADVANCE_CURSOR_PERIOD)
+	if not _emitted:
+		_emitted = true
+		on_line_complete.emit(_idx)
+	_state = _State.WAIT_CONFIRM
+	_prompt.text = "[ click izq / espacio :: confirmar ]"
 
 func _reveal_current_line() -> void:
 	if _idx >= _queue.size():
@@ -234,6 +296,13 @@ func _reveal_current_line() -> void:
 		on_line_complete.emit(_idx)
 	_state = _State.WAITING
 	_prompt.text = "[ click izq / espacio :: siguiente ]"
+
+func _begin_close() -> void:
+	if _state == _State.CLOSING:
+		return
+	_state = _State.CLOSING
+	_close_time = 0.0
+	_prompt.text = "[ cerrando.stream() ]"
 
 func _get_char_delay_for_index(text: String, index: int) -> float:
 	if index >= text.length():
@@ -275,7 +344,8 @@ func _input(event: InputEvent) -> void:
 	if not wants_advance:
 		return
 	get_viewport().set_input_as_handled()
-	receive_advance_input()
+	if _state != _State.TYPING:
+		receive_advance_input()
 
 func _set_tree_pause_lock(active: bool) -> void:
 	var tree := get_tree()
@@ -297,3 +367,17 @@ func _set_tree_pause_lock(active: bool) -> void:
 
 func _get_real_time_seconds() -> float:
 	return float(Time.get_ticks_msec()) * 0.001
+
+func _get_typing_speed_multiplier() -> float:
+	if _debug_speedup_override >= 0:
+		return 3.0 if _debug_speedup_override == 1 else 1.0
+	if Input.is_key_pressed(KEY_SPACE):
+		return 3.0
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		return 3.0
+	return 1.0
+
+func _set_panel_open_ratio(ratio: float) -> void:
+	var clamped_ratio := clampf(ratio, 0.0, 1.0)
+	_panel.offset_top = lerpf(0.0, -PANEL_HEIGHT, clamped_ratio)
+	_panel.offset_bottom = lerpf(PANEL_HEIGHT, 0.0, clamped_ratio)

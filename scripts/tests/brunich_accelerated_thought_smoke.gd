@@ -23,7 +23,7 @@ func _run() -> void:
 	_expect(player.has_method("get_accelerated_thought_charge"), "el MC debe exponer la carga actual de pensamiento acelerado")
 	_expect(player.has_method("get_accelerated_thought_max_charge"), "el MC debe exponer la carga maxima de pensamiento acelerado")
 	var max_charge := float(player.get_accelerated_thought_max_charge())
-	_expect(is_equal_approx(max_charge, 1.3), "pensamiento acelerado debe tener 1.3 segundos de carga maxima")
+	_expect(is_equal_approx(max_charge, 1.0), "pensamiento acelerado debe tener 1 segundo de carga maxima")
 
 	Input.action_press("accelerated_thought")
 	await _wait_frames(2)
@@ -36,7 +36,7 @@ func _run() -> void:
 
 	await _wait_real_seconds(0.7)
 	var partial_charge := float(player.get_accelerated_thought_charge())
-	_expect(partial_charge < max_charge and partial_charge > 0.45, "pensamiento acelerado debe drenar de forma gradual mientras se sostiene")
+	_expect(partial_charge < max_charge and partial_charge > 0.18, "pensamiento acelerado debe drenar de forma gradual mientras se sostiene")
 	Input.action_release("accelerated_thought")
 	await _wait_frames(2)
 	_expect(not player.is_accelerated_thought_active(), "pensamiento acelerado debe apagarse al soltar click derecho")
@@ -56,7 +56,7 @@ func _run() -> void:
 	Input.action_release("accelerated_thought")
 	await _wait_frames(2)
 	await _wait_real_seconds(2.1)
-	_expect(float(player.get_accelerated_thought_charge()) >= 1.25, "pensamiento acelerado debe rellenarse de nuevo en cerca de 2 segundos reales")
+	_expect(float(player.get_accelerated_thought_charge()) >= 0.95, "pensamiento acelerado debe rellenarse de nuevo en cerca de 2 segundos reales")
 
 	player.queue_free()
 	await _wait_frames(2)

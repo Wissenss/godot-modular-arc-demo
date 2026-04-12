@@ -69,16 +69,16 @@ func _get_beam_profile() -> Dictionary:
 		"active_duration": 6.0,
 		"fade_duration": 0.24,
 		"beam_length": 720.0,
-		"warning_width": 16.0,
-		"beam_width": 34.0,
+		"warning_width": 18.0,
+		"beam_width": 40.0,
 		"track_speed": 430.1,
 		"damage_tick_interval": 0.09,
-		"damage_per_tick": 36,
+		"damage_per_tick": 25,
 		"origin_offset": 28.0,
-		"warning_color": Color(0.74, 0.94, 1.0, 0.46),
-		"beam_outer_color": Color(0.50, 0.86, 1.0, 0.92),
+		"warning_color": Color(0.78, 0.96, 1.0, 0.52),
+		"beam_outer_color": Color(0.58, 0.90, 1.0, 0.96),
 		"beam_core_color": Color(0.96, 0.99, 1.0, 0.98),
-		"endpoint_color": Color(0.96, 0.99, 1.0, 0.88),
+		"endpoint_color": Color(0.98, 1.0, 1.0, 0.94),
 	}
 
 func _get_pickup_beam_profile() -> Dictionary:

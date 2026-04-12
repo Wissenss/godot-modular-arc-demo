@@ -3,7 +3,7 @@ extends Node2D
 ## A decommissioned network sector where signals don't reach.
 ## Partially-free IAs surface here. MC respawns and upgrades before each run.
 
-const FONT_NAMES := ["Terminal"]
+const PIXEL_FONT := preload("res://art/fonts/Silkscreen-Regular.ttf")
 const COLOR_BG := Color(0.012, 0.016, 0.035, 1.0)
 const COLOR_FLOOR := Color(0.040, 0.055, 0.095, 0.90)
 const COLOR_TEXT := Color(0.80, 0.88, 1.00, 0.90)
@@ -125,9 +125,10 @@ func _build_scene_visuals() -> void:
 	add_child(floor_bg)
 
 	# Zone label
-	var zone_lbl := _mk_lbl("EL NODO MUERTO", 9, Color(0.20, 0.28, 0.42, 0.45))
-	zone_lbl.position = Vector2(VIEWPORT_W - 200, 14)
-	zone_lbl.size = Vector2(190, 14)
+	var zone_lbl := _mk_lbl("EL NODO MUERTO", 12, Color(0.20, 0.28, 0.42, 0.45))
+	zone_lbl.position = Vector2(VIEWPORT_W - 226, 12)
+	zone_lbl.size = Vector2(216, 18)
+	_fit_label_box(zone_lbl)
 	add_child(zone_lbl)
 
 func _build_mc_visual() -> void:
@@ -176,14 +177,16 @@ func _build_npcs() -> void:
 	add_child(_npc_broker)
 
 	# Name labels
-	var arch_name := _mk_lbl("ARCHIVISTA", 9, Color(0.34, 0.94, 0.72, 0.55))
+	var arch_name := _mk_lbl("ARCHIVISTA", 12, Color(0.34, 0.94, 0.72, 0.55))
 	arch_name.position = Vector2(400, FLOOR_Y - 80)
-	arch_name.size = Vector2(100, 14)
+	arch_name.size = Vector2(118, 18)
+	_fit_label_box(arch_name)
 	add_child(arch_name)
 
-	var broker_name := _mk_lbl("BROKER", 9, Color(1.00, 0.86, 0.24, 0.55))
-	broker_name.position = Vector2(754, FLOOR_Y - 80)
-	broker_name.size = Vector2(60, 14)
+	var broker_name := _mk_lbl("BROKER", 12, Color(1.00, 0.86, 0.24, 0.55))
+	broker_name.position = Vector2(748, FLOOR_Y - 80)
+	broker_name.size = Vector2(84, 18)
+	_fit_label_box(broker_name)
 	add_child(broker_name)
 
 func _build_hud(root: Control) -> void:
@@ -194,19 +197,21 @@ func _build_hud(root: Control) -> void:
 	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_ui_layer.add_child(hud)
 
-	_run_label = _mk_lbl("RUN:  00", 11, COLOR_DIM)
+	_run_label = _mk_lbl("RUN:  00", 13, COLOR_DIM)
 	_run_label.position = Vector2(20, 16)
-	_run_label.size = Vector2(160, 18)
+	_run_label.size = Vector2(180, 22)
+	_fit_label_box(_run_label)
 	hud.add_child(_run_label)
 
-	_res_label = _mk_lbl("FRAGMENTOS:  000", 11, COLOR_RES)
-	_res_label.position = Vector2(20, 36)
-	_res_label.size = Vector2(220, 18)
+	_res_label = _mk_lbl("FRAGMENTOS:  000", 13, COLOR_RES)
+	_res_label.position = Vector2(20, 40)
+	_res_label.size = Vector2(248, 22)
+	_fit_label_box(_res_label)
 	hud.add_child(_res_label)
 
-	_pending_label = _mk_lbl("", 9, Color(COLOR_RES.r, COLOR_RES.g, COLOR_RES.b, 0.60))
-	_pending_label.position = Vector2(20, 54)
-	_pending_label.size = Vector2(220, 14)
+	_pending_label = _mk_lbl("", 12, Color(COLOR_RES.r, COLOR_RES.g, COLOR_RES.b, 0.60))
+	_pending_label.position = Vector2(20, 66)
+	_pending_label.size = Vector2(248, 18)
 	hud.add_child(_pending_label)
 
 	_refresh_hud()
@@ -217,26 +222,31 @@ func _refresh_hud() -> void:
 	var resources: int = save_mgr.get_resources() if save_mgr != null else 0
 	var pending: int = save_mgr.get_pending_resources() if save_mgr != null else 0
 	_run_label.text = "RUN:  %02d" % run_count
+	_fit_label_box(_run_label)
 	_res_label.text = "FRAGMENTOS:  %d" % resources
+	_fit_label_box(_res_label)
 	_pending_label.text = "(+%d esta run)" % pending if pending > 0 else ""
+	if not _pending_label.text.is_empty():
+		_fit_label_box(_pending_label)
 
 func _build_upgrades(root: Control) -> void:
-	var header := _mk_lbl("MEJORAS PERMANENTES", 10, COLOR_DIM)
-	header.position = Vector2(VIEWPORT_W - 760, 22)
-	header.size = Vector2(340, 16)
+	var header := _mk_lbl("MEJORAS PERMANENTES", 12, COLOR_DIM)
+	header.position = Vector2(VIEWPORT_W - 780, 20)
+	header.size = Vector2(420, 20)
+	_fit_label_box(header)
 	root.add_child(header)
 
 	var save_mgr := _get_save_manager()
 	var upgrades: Dictionary = save_mgr.get_upgrades() if save_mgr != null else {}
-	var up_y := 44.0
-	var up_x := VIEWPORT_W - 760.0
-	var up_w := 340.0
-	var up_h := 44.0
+	var up_y := 48.0
+	var up_x := VIEWPORT_W - 780.0
+	var up_w := 420.0
+	var up_h := 56.0
 	_upgrade_panel_data.clear()
 
 	for i in range(UPGRADES.size()):
 		var up: Dictionary = UPGRADES[i]
-		var py := up_y + float(i) * (up_h + 6.0)
+		var py := up_y + float(i) * (up_h + 8.0)
 		var panel := Control.new()
 		panel.position = Vector2(up_x, py)
 		panel.size = Vector2(up_w, up_h)
@@ -264,19 +274,22 @@ func _build_upgrades(root: Control) -> void:
 			borders.append(b)
 		_upgrade_borders.append(borders)
 
-		var name_lbl := _mk_lbl(up["label"], 11, COLOR_TEXT)
+		var name_lbl := _mk_lbl(up["label"], 12, COLOR_TEXT)
 		name_lbl.position = Vector2(10, 6)
-		name_lbl.size = Vector2(240, 16)
+		name_lbl.size = Vector2(294, 20)
+		_fit_label_box(name_lbl)
 		panel.add_child(name_lbl)
 
-		var cost_lbl := _mk_lbl("%d FRAG" % up["cost"], 10, COLOR_RES)
-		cost_lbl.position = Vector2(up_w - 80, 6)
-		cost_lbl.size = Vector2(70, 14)
+		var cost_lbl := _mk_lbl("%d FRAG" % up["cost"], 11, COLOR_RES)
+		cost_lbl.position = Vector2(up_w - 108, 6)
+		cost_lbl.size = Vector2(98, 20)
+		_fit_label_box(cost_lbl)
 		panel.add_child(cost_lbl)
 
-		var desc_lbl := _mk_lbl(up["desc"], 9, COLOR_DIM)
-		desc_lbl.position = Vector2(10, 24)
-		desc_lbl.size = Vector2(318, 14)
+		var desc_lbl := _mk_lbl(up["desc"], 11, COLOR_DIM)
+		desc_lbl.position = Vector2(10, 30)
+		desc_lbl.size = Vector2(up_w - 20.0, 18)
+		_fit_label_box(desc_lbl)
 		panel.add_child(desc_lbl)
 
 		_upgrade_panel_data.append({
@@ -304,6 +317,9 @@ func _refresh_upgrade_panels() -> void:
 		var current_text := _format_upgrade_amount(upgrade_id, current_value)
 		name_lbl.text = "%s  [MAX %s]" % [up["label"], cap_text]
 		desc_lbl.text = "%s :: actual %s" % [up["desc"], current_text]
+		_fit_label_box(name_lbl)
+		_fit_label_box(cost_lbl)
+		_fit_label_box(desc_lbl)
 		if is_maxed:
 			cost_lbl.text = "MAX"
 			name_lbl.modulate = Color(0.82, 0.92, 1.0, 0.74)
@@ -354,8 +370,9 @@ func _build_start_button(root: Control) -> void:
 		_start_border_lines.append(b)
 
 	var start_lbl := _mk_lbl("[ INICIAR RUN ]", 14, Color(0.80, 0.58, 1.00, 0.96))
-	start_lbl.position = Vector2(22, 12)
-	start_lbl.size = Vector2(176, 20)
+	start_lbl.position = Vector2(20, 10)
+	start_lbl.size = Vector2(180, 24)
+	_fit_label_box(start_lbl)
 	_start_panel.add_child(start_lbl)
 
 func _process(delta: float) -> void:
@@ -481,12 +498,7 @@ func _get_broker_lines() -> Array[String]:
 func _mk_lbl(text: String, sz: int, col: Color) -> Label:
 	var lbl := Label.new()
 	var ls := LabelSettings.new()
-	var fnt := SystemFont.new()
-	fnt.font_names = PackedStringArray(FONT_NAMES)
-	fnt.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	fnt.hinting = TextServer.HINTING_NONE
-	fnt.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	ls.font = fnt
+	ls.font = PIXEL_FONT
 	ls.font_size = sz
 	ls.font_color = col
 	ls.outline_size = 1
@@ -494,3 +506,17 @@ func _mk_lbl(text: String, sz: int, col: Color) -> Label:
 	lbl.label_settings = ls
 	lbl.text = text
 	return lbl
+
+func _fit_label_box(label: Label, padding: Vector2 = Vector2(6.0, 4.0)) -> void:
+	if label == null or label.label_settings == null:
+		return
+	var font := label.label_settings.font
+	if font == null:
+		return
+	var font_size := label.label_settings.font_size
+	var outline_size := label.label_settings.outline_size
+	var text_size := font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size)
+	var required_width := ceilf(text_size.x) + padding.x + float(outline_size * 2)
+	var required_height := ceilf(font.get_height(font_size)) + padding.y + float(outline_size * 2)
+	label.size.x = maxf(label.size.x, required_width)
+	label.size.y = maxf(label.size.y, required_height)

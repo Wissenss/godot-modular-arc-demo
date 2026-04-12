@@ -63,10 +63,11 @@ func _run() -> void:
 	if mana_value != null:
 		_expect(mana_value.text == "050/100", "el mana inicial debe arrancar a la mitad")
 	if thought_value != null:
-		_expect(thought_value.text == "1.3/1.3", "pensamiento acelerado debe arrancar lleno")
+		_expect(thought_value.text == "1.0/1.0", "pensamiento acelerado debe arrancar lleno")
 		if thought_value.label_settings != null:
 			_expect(thought_value.label_settings.font is FontFile, "la barra de pensamiento acelerado debe usar la misma familia pixel font")
 			_expect(String(thought_value.label_settings.font.resource_path).ends_with("Silkscreen-Regular.ttf"), "la barra de pensamiento acelerado debe usar la fuente pixel compartida")
+			_expect(thought_value.label_settings.font_size >= 12, "el valor de pensamiento acelerado debe ser un poco mas grande y legible")
 
 	player.HealthComp.take_damage(37)
 	player.Ciclos = 12.0
@@ -80,7 +81,7 @@ func _run() -> void:
 		var shown_mana := int(mana_parts[0]) if not mana_parts.is_empty() else -1
 		_expect(shown_mana >= 12 and shown_mana <= 14, "el valor de mana debe actualizarse al cambiar ciclos")
 	if thought_value != null:
-		_expect(thought_value.text == "0.8/1.3", "el valor de pensamiento acelerado debe actualizarse al cambiar la reserva")
+		_expect(thought_value.text == "0.8/1.0", "el valor de pensamiento acelerado debe actualizarse al cambiar la reserva")
 
 	_completed = true
 	if _failures.is_empty():

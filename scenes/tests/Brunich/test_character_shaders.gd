@@ -40,11 +40,11 @@ const SCREEN_BLUR_BASE_SCALE := 0.860
 const FACE_ROOT_SCALE := 0.904
 const PARTICLE_SPEED_MULTIPLIER := 0.5
 const PARTICLE_LIFETIME_MULTIPLIER := 1.45
-const TERMINAL_FONT_NAMES := ["Terminal"]
+const PIXEL_FONT := preload("res://art/fonts/Silkscreen-Regular.ttf")
 const HACK_POPUP_MIN_WIDTH := 120.0
 const HACK_POPUP_PADDING_X := 12.0
 const HACK_POPUP_HEIGHT := 24.0
-const ACCELERATED_THOUGHT_MAX_CHARGE := 1.3
+const ACCELERATED_THOUGHT_MAX_CHARGE := 1.0
 const ACCELERATED_THOUGHT_RECHARGE_TIME := 2.0
 const ACCELERATED_THOUGHT_TIME_SCALE := 0.42
 const ACCELERATED_THOUGHT_BLEND_IN_SPEED := 8.6
@@ -874,12 +874,7 @@ func _build_hack_popup() -> void:
 
 	_hack_popup_label = Label.new()
 	var label_settings := LabelSettings.new()
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(TERMINAL_FONT_NAMES)
-	font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	font.hinting = TextServer.HINTING_NONE
-	font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	label_settings.font = font
+	label_settings.font = PIXEL_FONT
 	label_settings.font_size = 13
 	label_settings.font_color = Color(0.72, 1.0, 0.94, 1.0)
 	label_settings.outline_size = 1

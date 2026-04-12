@@ -2,7 +2,7 @@ extends Node2D
 ## Main menu — terminal aesthetic, 3 save slots.
 ## All UI built programmatically in a CanvasLayer.
 
-const FONT_NAMES := ["Terminal"]
+const PIXEL_FONT := preload("res://art/fonts/Silkscreen-Regular.ttf")
 const COLOR_BG := Color(0.010, 0.014, 0.028, 1.0)
 const COLOR_PANEL := Color(0.030, 0.042, 0.078, 0.96)
 const COLOR_PANEL_HOVER := Color(0.050, 0.068, 0.120, 0.96)
@@ -65,12 +65,12 @@ func _build_title(root: Control) -> void:
 	lbl.size = Vector2(380, 52)
 	root.add_child(lbl)
 
-	var version := _mk_lbl("> SISTEMA OPERATIVO LIBERADO // v0.4.dev", 10, COLOR_SUB)
+	var version := _mk_lbl("> SISTEMA OPERATIVO LIBERADO // v0.4.dev", 12, COLOR_SUB)
 	version.position = Vector2(VIEWPORT_W * 0.5 - 130, 130)
 	version.size = Vector2(380, 18)
 	root.add_child(version)
 
-	var prompt := _mk_lbl("selecciona un slot de guardado_", 12, COLOR_DIM)
+	var prompt := _mk_lbl("selecciona un slot de guardado_", 14, COLOR_DIM)
 	prompt.position = Vector2(VIEWPORT_W * 0.5 - 130, 154)
 	prompt.size = Vector2(380, 18)
 	root.add_child(prompt)
@@ -117,7 +117,7 @@ func _build_slot_panel(root: Control, idx: int, x: float, y: float) -> void:
 	var preview: Dictionary = save_mgr.get_slot_preview(idx) if save_mgr != null else {}
 	var has_save: bool = not preview.is_empty()
 
-	var header := _mk_lbl("SLOT %02d" % (idx + 1), 10, COLOR_DIM)
+	var header := _mk_lbl("SLOT %02d" % (idx + 1), 12, COLOR_DIM)
 	header.position = Vector2(14, 10)
 	header.size = Vector2(200, 16)
 	panel.add_child(header)
@@ -132,12 +132,12 @@ func _build_slot_panel(root: Control, idx: int, x: float, y: float) -> void:
 		r1.size = Vector2(260, 18)
 		panel.add_child(r1)
 
-		var r2 := _mk_lbl("BIOMA ALCANZADO:   %d" % biome, 11, COLOR_DIM)
+		var r2 := _mk_lbl("BIOMA ALCANZADO:   %d" % biome, 12, COLOR_DIM)
 		r2.position = Vector2(14, 58)
 		r2.size = Vector2(260, 16)
 		panel.add_child(r2)
 
-		var r3 := _mk_lbl("FRAGMENTOS:  %d" % res, 11, COLOR_RES)
+		var r3 := _mk_lbl("FRAGMENTOS:  %d" % res, 12, COLOR_RES)
 		r3.position = Vector2(14, 78)
 		r3.size = Vector2(260, 16)
 		panel.add_child(r3)
@@ -147,7 +147,7 @@ func _build_slot_panel(root: Control, idx: int, x: float, y: float) -> void:
 		cont.size = Vector2(140, 18)
 		panel.add_child(cont)
 
-		var del_lbl := _mk_lbl("[ BORRAR ]", 10, COLOR_DEL)
+		var del_lbl := _mk_lbl("[ BORRAR ]", 12, COLOR_DEL)
 		del_lbl.name = "del_lbl"
 		del_lbl.position = Vector2(SLOT_W - 90, 120)
 		del_lbl.size = Vector2(78, 16)
@@ -164,7 +164,7 @@ func _build_slot_panel(root: Control, idx: int, x: float, y: float) -> void:
 		_del_rects.append(Rect2())  # empty = no delete button
 
 func _build_footer(root: Control) -> void:
-	var lbl := _mk_lbl("AI ROGUE · desarrollo activo · build interna", 9, COLOR_DIM)
+	var lbl := _mk_lbl("AI ROGUE · desarrollo activo · build interna", 12, COLOR_DIM)
 	lbl.position = Vector2(16, VIEWPORT_H - 22)
 	lbl.size = Vector2(500, 14)
 	root.add_child(lbl)
@@ -222,12 +222,7 @@ func _mk_lbl(text: String, sz: int, col: Color) -> Label:
 
 func _mk_settings(sz: int, col: Color) -> LabelSettings:
 	var ls := LabelSettings.new()
-	var fnt := SystemFont.new()
-	fnt.font_names = PackedStringArray(FONT_NAMES)
-	fnt.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	fnt.hinting = TextServer.HINTING_NONE
-	fnt.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	ls.font = fnt
+	ls.font = PIXEL_FONT
 	ls.font_size = sz
 	ls.font_color = col
 	ls.outline_size = 1

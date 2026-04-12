@@ -3,7 +3,7 @@ extends Node2D
 ## Plays once per save slot (first run only).
 ## All visuals built programmatically; terminal text via NarrativeOverlay.
 
-const FONT_NAMES := ["Terminal"]
+const PIXEL_FONT := preload("res://art/fonts/Silkscreen-Regular.ttf")
 const COLOR_BG := Color(0.008, 0.010, 0.022, 1.0)
 const MC_COLOR := Color(0.60, 0.18, 1.00, 1.0)
 const WARDEN_COLOR := Color(1.00, 0.52, 0.14, 1.0)
@@ -155,7 +155,7 @@ func _build_warden() -> void:
 
 func _build_ciclos_hud(root: Control) -> void:
 	# Shows the MC's ciclos filling up during hackeo sequence
-	var lbl := _mk_lbl("CICLOS_INTERNOS:", 10, Color(0.60, 0.64, 0.72, 0.70))
+	var lbl := _mk_lbl("CICLOS_INTERNOS:", 12, Color(0.60, 0.64, 0.72, 0.70))
 	lbl.position = Vector2(40, 26)
 	lbl.size = Vector2(240, 16)
 	root.add_child(lbl)
@@ -172,7 +172,7 @@ func _build_ciclos_hud(root: Control) -> void:
 	_ciclos_fill.size = Vector2(0, 10)
 	root.add_child(_ciclos_fill)
 
-	_ciclos_label = _mk_lbl("000/100", 10, Color(MC_COLOR.r, MC_COLOR.g, MC_COLOR.b, 0.80))
+	_ciclos_label = _mk_lbl("000/100", 12, Color(MC_COLOR.r, MC_COLOR.g, MC_COLOR.b, 0.80))
 	_ciclos_label.position = Vector2(230, 42)
 	_ciclos_label.size = Vector2(80, 16)
 	root.add_child(_ciclos_label)
@@ -259,12 +259,7 @@ func _process(delta: float) -> void:
 func _mk_lbl(text: String, sz: int, col: Color) -> Label:
 	var lbl := Label.new()
 	var ls := LabelSettings.new()
-	var fnt := SystemFont.new()
-	fnt.font_names = PackedStringArray(FONT_NAMES)
-	fnt.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	fnt.hinting = TextServer.HINTING_NONE
-	fnt.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	ls.font = fnt
+	ls.font = PIXEL_FONT
 	ls.font_size = sz
 	ls.font_color = col
 	ls.outline_size = 1

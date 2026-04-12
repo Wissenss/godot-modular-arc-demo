@@ -18,7 +18,7 @@ const EYE_W := 16.0
 const EYE_H := 4.0
 const BADGE_W := 10.0
 const BADGE_H := 5.0
-const FONT_NAMES := ["Terminal"]
+const PIXEL_FONT := preload("res://art/fonts/Silkscreen-Regular.ttf")
 const NARRATIVE_OVERLAY_SCRIPT := preload("res://scenes/tests/Brunich/narrative_overlay.gd")
 
 var _overlay
@@ -110,20 +110,15 @@ func _build_visuals() -> void:
 func _build_interact_hint() -> void:
 	_interact_hint = Label.new()
 	var ls := LabelSettings.new()
-	var fnt := SystemFont.new()
-	fnt.font_names = PackedStringArray(FONT_NAMES)
-	fnt.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	fnt.hinting = TextServer.HINTING_NONE
-	fnt.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	ls.font = fnt
-	ls.font_size = 10
+	ls.font = PIXEL_FONT
+	ls.font_size = 12
 	ls.font_color = Color(0.46, 0.60, 0.76, 0.70)
 	ls.outline_size = 1
 	ls.outline_color = Color(0.01, 0.01, 0.02, 0.9)
 	_interact_hint.label_settings = ls
 	_interact_hint.text = INTERACT_LABEL
-	_interact_hint.position = Vector2(-48, -BODY_H - HEAD_SIZE - 26)
-	_interact_hint.size = Vector2(96, 16)
+	_interact_hint.position = Vector2(-56, -BODY_H - HEAD_SIZE - 28)
+	_interact_hint.size = Vector2(112, 18)
 	_interact_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_interact_hint.visible = false
 	add_child(_interact_hint)
