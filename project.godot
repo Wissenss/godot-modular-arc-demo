@@ -17,8 +17,8 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 config/name="AI Rogue"
 config/tags=PackedStringArray("chems", "favorite")
 run/main_scene="res://scenes/tests/Brunich/main_menu.tscn"
-config/features=PackedStringArray("4.6", "GL Compatibility")
-config/icon="res://icon.svg"
+config/features=PackedStringArray("4.6", "Forward Plus")
+config/icon="res://art/pORTADA1.png"
 
 [autoload]
 
@@ -28,7 +28,9 @@ SaveManager="*res://scenes/tests/Brunich/save_manager.gd"
 
 window/size/viewport_width=1280
 window/size/viewport_height=640
+window/size/mode=3
 window/size/resizable=false
+window/stretch/mode="canvas_items"
 
 [input]
 
@@ -64,5 +66,5 @@ ui_down={
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="mobile"

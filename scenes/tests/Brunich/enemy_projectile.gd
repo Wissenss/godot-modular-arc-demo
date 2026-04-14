@@ -2,6 +2,8 @@ class_name EnemyProjectile extends Node2D
 
 const LIFE_TIME := 2.4
 const BASE_DAMAGE := 18
+const BRUNICH_PALETTE := preload("res://scenes/tests/Brunich/brunich_palette.gd")
+const COMBAT_VFX := preload("res://scenes/tests/Brunich/combat_vfx.gd")
 
 var ConstantVelocityComp: ConstantVelocityComponent
 var HurtboxComp: HurtboxComponent
@@ -18,6 +20,7 @@ var _pending_profile: Dictionary = {}
 var _pierce_count := 0      # 0 = dies on first hit; N = passes through N times
 var _slow_factor := 0.0     # 0 = no slow; 0.36 = 36% speed reduction on hit
 var _slow_duration := 1.8   # seconds the slow effect lasts
+var _impact_emitted := false
 
 func _ready() -> void:
 	add_to_group("enemy_projectile")
@@ -38,6 +41,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	_life_remaining -= delta
 	if _life_remaining <= 0.0:
+		_emit_impact(0.52)
 		queue_free()
 		return
 
@@ -60,6 +64,7 @@ func _handle_on_hurt(to: Area2D, _damage: int) -> void:
 		_pierce_count -= 1
 		return
 
+	_emit_impact(0.94)
 	queue_free()
 
 func configure_projectile(profile: Dictionary) -> void:
@@ -79,10 +84,10 @@ func _apply_visual_profile(profile: Dictionary) -> void:
 	if self.OuterRing == null:
 		return
 
-	self.OuterRing.color = profile.get("outer_color", Color(0.0, 0.85, 1.0, 0.9))
-	self.CorePolygon.color = profile.get("core_color", Color(0.0, 0.18, 0.38, 0.95))
-	self.CodePolygon.color = profile.get("code_color", Color(0.92, 0.99, 1.0, 0.95))
-	self.TrailParticles.color = profile.get("trail_color", Color(0.0, 0.85, 1.0, 0.6))
+	self.OuterRing.color = profile.get("outer_color", BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_COLD_OUTER, 0.9))
+	self.CorePolygon.color = profile.get("core_color", BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_COLD_CORE, 0.95))
+	self.CodePolygon.color = profile.get("code_color", BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_COLD_CODE, 0.95))
+	self.TrailParticles.color = profile.get("trail_color", BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_COLD_TRAIL, 0.6))
 	self.TrailParticles.scale_amount_min = float(profile.get("trail_scale_min", 3.0))
 	self.TrailParticles.scale_amount_max = float(profile.get("trail_scale_max", 5.0))
 	if _stolen_attack:
@@ -98,3 +103,20 @@ func _apply_visual_profile(profile: Dictionary) -> void:
 	self.OuterRing.scale = Vector2.ONE * (6.2 * _visual_scale)
 	self.CorePolygon.scale = Vector2.ONE * (3.8 * _visual_scale)
 	self.CodePolygon.scale = Vector2.ONE * (2.8 * _visual_scale)
+
+func _emit_impact(size_scale: float) -> void:
+	if _impact_emitted:
+		return
+	_impact_emitted = true
+	var parent: Node = get_tree().current_scene if get_tree().current_scene != null else get_tree().root
+	COMBAT_VFX.spawn_pixel_impact(
+		parent,
+		global_position,
+		self.ConstantVelocityComp.Direction,
+		self.OuterRing.color,
+		self.CorePolygon.color,
+		self.CodePolygon.color,
+		_visual_scale * size_scale,
+		7,
+		0.24
+	)

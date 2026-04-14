@@ -33,6 +33,7 @@ func _run() -> void:
 	var at_bar := hud_root.get_node_or_null("at_bar") as Control if hud_root != null else null
 	var thought_bg := hud_root.get_node_or_null("at_bar/at_bg") as ColorRect if hud_root != null else null
 	var thought_value := hud_root.get_node_or_null("at_bar/at_value") as Label if hud_root != null else null
+	var palette_preview := hud_root.get_node_or_null("endesga64_palette_preview") as ColorRect if hud_root != null else null
 
 	_expect(hud_layer != null, "el HUD debe existir como CanvasLayer")
 	_expect(hud_root != null, "el HUD debe construir un contenedor raiz")
@@ -40,6 +41,10 @@ func _run() -> void:
 	_expect(mana_value != null, "la barra de mana debe mostrar el valor actual a la derecha")
 	_expect(thought_value != null, "la barra de pensamiento acelerado debe mostrar el valor actual a la derecha")
 	_expect(at_bar != null, "la barra de pensamiento acelerado debe existir como widget propio")
+	_expect(palette_preview != null, "la escena principal debe poder montar un preview global de paleta")
+	if palette_preview != null:
+		_expect(not palette_preview.visible, "el preview global de Endesga64 debe quedar apagado por defecto para no contaminar el look final")
+		_expect(palette_preview.material is ShaderMaterial, "el preview global de paleta debe usar un shader dedicado")
 
 	if health_bg != null and health_value != null:
 		_expect(health_value.position.x >= health_bg.position.x + health_bg.size.x + 6.0, "el valor de vida debe quedar justo a la derecha de la barra")

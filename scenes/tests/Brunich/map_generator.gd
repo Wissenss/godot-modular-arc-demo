@@ -2,13 +2,15 @@
 ## Builds a focused 32x32 atlas from the UpDown sheet and paints the approved
 ## industrial-sunken layout with a clear top exit.
 extends TileMapLayer
+const BRUNICH_PALETTE := preload("res://scenes/tests/Brunich/brunich_palette.gd")
 
-const COLS := 40
-const ROWS := 20
+var COLS := 40
+var ROWS := 20
 const TILE_SIZE := 32
 
-const EXIT_START := 17
-const EXIT_END := 22
+var EXIT_START := 17
+var EXIT_END := 22
+const EXIT_WIDTH_TILES := 6
 const WALL_THICKNESS := 32.0
 
 const ATLAS_PATH := "res://art/generated/brunich/brunich_updown_atlas.png"
@@ -27,11 +29,15 @@ const LAYOUT_CLASSIC: StringName = &"classic"
 const LAYOUT_RIB_CAGE: StringName = &"rib_cage"
 const LAYOUT_SPLIT_BRIDGE: StringName = &"split_bridge"
 const LAYOUT_REACTOR_SPINE: StringName = &"reactor_spine"
+const LAYOUT_MEGACORE: StringName = &"megacore"
 const LAYOUT_IDS := [
 	LAYOUT_CLASSIC,
 	LAYOUT_RIB_CAGE,
 	LAYOUT_SPLIT_BRIDGE,
 	LAYOUT_REACTOR_SPINE,
+]
+const LAYOUT_IDS_LARGE := [
+	LAYOUT_MEGACORE,
 ]
 
 var CurrentLayoutId: StringName = LAYOUT_CLASSIC
@@ -60,20 +66,49 @@ func get_layout_id() -> StringName:
 	return CurrentLayoutId
 
 func get_layout_ids() -> Array[StringName]:
-	var layout_ids: Array[StringName] = []
-	for layout_id in LAYOUT_IDS:
-		layout_ids.append(layout_id)
-	return layout_ids
+	var ids: Array[StringName] = []
+	if COLS > 40:
+		for id in LAYOUT_IDS_LARGE:
+			ids.append(id)
+	else:
+		for id in LAYOUT_IDS:
+			ids.append(id)
+	return ids
 
 func set_layout_id(layout_id: StringName) -> void:
 	var resolved_layout := layout_id
-	if not LAYOUT_IDS.has(resolved_layout):
-		resolved_layout = LAYOUT_CLASSIC
+	var valid_ids := get_layout_ids()
+	if not valid_ids.has(resolved_layout):
+		resolved_layout = valid_ids[0] if not valid_ids.is_empty() else LAYOUT_CLASSIC
 	if CurrentLayoutId == resolved_layout and get_used_cells().size() > 0:
 		return
 	CurrentLayoutId = resolved_layout
 	if is_inside_tree():
 		_refresh_room()
+
+## ── Dimension API ────────────────────────────────────────────────────────────
+
+func set_dimensions(cols: int, rows: int) -> void:
+	COLS = cols
+	ROWS = rows
+	var mid := COLS / 2
+	EXIT_START = mid - EXIT_WIDTH_TILES / 2
+	EXIT_END   = mid + EXIT_WIDTH_TILES / 2 - 1
+	if is_inside_tree():
+		tile_set = _build_tileset()
+		_refresh_room()
+
+func reset_to_default_dimensions() -> void:
+	set_dimensions(40, 20)
+
+func get_room_pixel_size() -> Vector2:
+	return Vector2(float(COLS * TILE_SIZE), float(ROWS * TILE_SIZE))
+
+func get_exit_start_px() -> float:
+	return float(EXIT_START * TILE_SIZE)
+
+func get_exit_end_px() -> float:
+	return float((EXIT_END + 1) * TILE_SIZE)
 
 func _refresh_room() -> void:
 	_generate()
@@ -107,6 +142,8 @@ func _pick(col: int, row: int) -> Vector2i:
 		return T_PANEL_GOLD
 
 	match CurrentLayoutId:
+		LAYOUT_MEGACORE:
+			return _pick_megacore(col, row)
 		LAYOUT_RIB_CAGE:
 			return _pick_rib_cage(col, row)
 		LAYOUT_SPLIT_BRIDGE:
@@ -197,6 +234,64 @@ func _pick_reactor_spine(col: int, row: int) -> Vector2i:
 
 	return _pick_floor_variant(col, row)
 
+## ── MEGACORE: versión 5× del Classic (para cuartos 200×100) ─────────────────
+
+func _pick_megacore(col: int, row: int) -> Vector2i:
+	if _is_mega_sunken_corner(col, row):
+		return T_PIT_DEEP
+	if _is_mega_central_rib(col, row):
+		return T_WALL_BEVEL
+	if _is_mega_core_platform(col, row):
+		return T_PANEL_GOLD
+	if _is_mega_spawn_lane(col, row):
+		return T_FLOOR_PLAIN
+	if _is_mega_mechanical_spine(col, row):
+		return T_FLOOR_PANEL
+	return _pick_floor_variant_mega(col, row)
+
+# Esquinas hundidas escaladas 5× (original: 4-6 y 33-35 / 4-6 y 13-15)
+func _is_mega_sunken_corner(col: int, row: int) -> bool:
+	return (_matches_rect(col, row, 20, 30, 20, 30))  \
+		or (_matches_rect(col, row, 165, 175, 20, 30)) \
+		or (_matches_rect(col, row, 20, 30, 65, 75))   \
+		or (_matches_rect(col, row, 165, 175, 65, 75))
+
+# Costillas centrales 5× (original: col 12 y 27, rows 7-12)
+func _is_mega_central_rib(col: int, row: int) -> bool:
+	return (col == 60 or col == 135) and row >= 35 and row <= 60
+
+# Plataforma central 5× (original: rows 8-11 cols 16-23, plus bordes)
+func _is_mega_core_platform(col: int, row: int) -> bool:
+	return (_matches_rect(col, row, 80, 115, 40, 55)) \
+		or (((row == 45) or (row == 50)) and (col == 75 or col == 120))
+
+# Carriles de spawn 5× (original: cols 2-10 y 29-37, rows 7-12)
+func _is_mega_spawn_lane(col: int, row: int) -> bool:
+	return (_matches_rect(col, row, 10, 50, 35, 60)) \
+		or (_matches_rect(col, row, 145, 185, 35, 60))
+
+# Columna vertebral mecánica 5× (original: rows 5 y 14, cols 11-28)
+func _is_mega_mechanical_spine(col: int, row: int) -> bool:
+	return (row == 25 or row == 70) and col >= 55 and col <= 140
+
+# Variante de suelo para el cuarto grande
+func _pick_floor_variant_mega(col: int, row: int) -> Vector2i:
+	# Pasillo hacia la salida (escala 5×: rows 15-60, cols 90-105)
+	if row >= 15 and row <= 60 and col >= 90 and col <= 105:
+		return T_FLOOR_GRID if row % 2 == 0 else T_FLOOR_PANEL
+	# Banda central de enfoque (escala 5×: rows 40-55, cols 65-130)
+	if row >= 40 and row <= 55 and col >= 65 and col <= 130:
+		return T_FLOOR_PANEL if (col + row) % 2 == 0 else T_FLOOR_GRID
+	# Carriles de servicio laterales (escala 5×: cols 30-40 y 155-165, rows 20-75)
+	if ((col >= 30 and col <= 40) or (col >= 155 and col <= 165)) and row >= 20 and row <= 75:
+		return T_FLOOR_PANEL if row % 3 == 0 else T_FLOOR_PLAIN
+	# Zona central de cuadrícula (escala 5×: cols 50-145, rows 25-70)
+	if col >= 50 and col <= 145 and row >= 25 and row <= 70:
+		return T_FLOOR_GRID if (col + row) % 2 == 0 else T_FLOOR_PANEL
+	if (col + row) % 5 == 0:
+		return T_FLOOR_PANEL
+	return T_FLOOR_PLAIN
+
 func _pick_border(col: int, row: int) -> Vector2i:
 	if row == 0 and col >= EXIT_START - 1 and col <= EXIT_END + 1:
 		return T_PANEL_GOLD
@@ -205,11 +300,26 @@ func _pick_border(col: int, row: int) -> Vector2i:
 	return T_WALL_BEVEL
 
 func _pick_floor_variant(col: int, row: int) -> Vector2i:
+	if _is_exit_runway(col, row):
+		return T_FLOOR_GRID if row % 2 == 0 else T_FLOOR_PANEL
+	if _is_center_focus_band(col, row):
+		return T_FLOOR_PANEL if (col + row) % 2 == 0 else T_FLOOR_GRID
+	if _is_side_service_lane(col, row):
+		return T_FLOOR_PANEL if row % 3 == 0 else T_FLOOR_PLAIN
 	if col >= 10 and col <= 29 and row >= 5 and row <= 14:
 		return T_FLOOR_GRID if (col + row) % 2 == 0 else T_FLOOR_PANEL
 	if (col + row) % 5 == 0:
 		return T_FLOOR_PANEL
 	return T_FLOOR_PLAIN
+
+func _is_exit_runway(col: int, row: int) -> bool:
+	return row >= 3 and row <= 12 and col >= 18 and col <= 21
+
+func _is_center_focus_band(col: int, row: int) -> bool:
+	return row >= 8 and row <= 11 and col >= 13 and col <= 26
+
+func _is_side_service_lane(col: int, row: int) -> bool:
+	return (((col >= 6 and col <= 8) or (col >= 31 and col <= 33)) and row >= 4 and row <= 15)
 
 func _is_exit_void(col: int, row: int) -> bool:
 	return row == 0 and col >= EXIT_START and col <= EXIT_END
@@ -251,7 +361,7 @@ func _tint_backdrop() -> void:
 		return
 	var backdrop := get_parent().get_node_or_null("void_bg") as Polygon2D
 	if backdrop != null:
-		backdrop.color = Color(0.015, 0.024, 0.055, 1.0)
+		backdrop.color = BRUNICH_PALETTE.VOID_BG
 
 func _ensure_arena_bounds() -> void:
 	if get_parent() == null:

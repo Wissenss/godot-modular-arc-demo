@@ -1,12 +1,13 @@
 extends Node2D
 
+const BRUNICH_PALETTE := preload("res://scenes/tests/Brunich/brunich_palette.gd")
 const SHOOT_COOLDOWN := 0.10
 const DEFAULT_ATTACK_ID := "rogue_shard"
 const DEFAULT_PROJECTILE_SPEED := 360.0
-const STOLEN_OUTER_COLOR := Color(0.85, 0.77, 1.0, 0.95)
-const STOLEN_CORE_COLOR := Color(0.20, 0.06, 0.32, 1.0)
-const STOLEN_CODE_COLOR := Color(0.96, 0.88, 1.0, 0.96)
-const STOLEN_TRAIL_COLOR := Color(0.78, 0.67, 1.0, 0.72)
+const STOLEN_OUTER_COLOR := Color8(243, 137, 245, 242)
+const STOLEN_CORE_COLOR := Color8(59, 20, 67, 255)
+const STOLEN_CODE_COLOR := Color8(249, 230, 207, 245)
+const STOLEN_TRAIL_COLOR := Color8(202, 82, 201, 184)
 const STOLEN_ATTACK_TARGET_DPS := 215.0
 const STOLEN_ATTACK_MIN_DAMAGE := 28.0
 const STOLEN_ATTACK_MAX_DAMAGE := 72.0
@@ -109,7 +110,7 @@ func equip_enemy_attack(profile: Dictionary = {}) -> void:
 		"damage_tick_interval": 0.10,
 		"damage_per_tick": 7,
 		"origin_offset": 28.0,
-		"warning_color": Color(0.82, 0.74, 1.0, 0.42),
+		"warning_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ACCENT_THOUGHT_HOT, 0.42),
 		"beam_outer_color": STOLEN_OUTER_COLOR,
 		"beam_core_color": STOLEN_CODE_COLOR,
 		"endpoint_color": STOLEN_CODE_COLOR,
@@ -202,10 +203,15 @@ func _apply_stolen_attack_overrides(projectile_profile: Dictionary) -> void:
 	projectile_profile["trail_scale_max"] = maxf(float(projectile_profile.get("trail_scale_max", 8.0)), 8.0)
 
 func _apply_stolen_beam_overrides(beam_profile: Dictionary) -> void:
-	beam_profile["warning_color"] = Color(0.82, 0.74, 1.0, 0.42)
+	beam_profile["warning_color"] = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ACCENT_THOUGHT_HOT, 0.42)
 	beam_profile["beam_outer_color"] = STOLEN_OUTER_COLOR
 	beam_profile["beam_core_color"] = STOLEN_CODE_COLOR
 	beam_profile["endpoint_color"] = STOLEN_CODE_COLOR
+	beam_profile["allow_dash_discharge"] = false
+	beam_profile["lock_on_fire"] = true
+	beam_profile["stop_on_first_enemy_hit"] = true
+	beam_profile["warning_width"] = float(beam_profile.get("warning_width", 15.0)) * 0.75
+	beam_profile["beam_width"] = float(beam_profile.get("beam_width", 28.0)) * 0.75
 
 func _rebalance_stolen_attack_profile(attack_profile: Dictionary, projectile_profile: Dictionary) -> void:
 	if bool(projectile_profile.get("preserve_stolen_damage", false)):

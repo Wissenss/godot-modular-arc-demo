@@ -7,6 +7,9 @@ const ENEMY_PIERCE_SCENE := preload("res://scenes/tests/Brunich/enemy_pierce.tsc
 const ENEMY_SLOWBEAM_SCENE := preload("res://scenes/tests/Brunich/enemy_slowbeam.tscn")
 const ENEMY_AI_CORE_SCENE := preload("res://scenes/tests/Brunich/enemy_ai_core.tscn")
 const NARRATIVE_OVERLAY_SCRIPT := preload("res://scenes/tests/Brunich/narrative_overlay.gd")
+const BRUNICH_PALETTE := preload("res://scenes/tests/Brunich/brunich_palette.gd")
+const BRUNICH_VISUAL_STACK := preload("res://scenes/tests/Brunich/visual_stack/brunich_visual_stack.gd")
+const ENDESGA64_PALETTE_PREVIEW_SHADER := preload("res://scenes/tests/Brunich/endesga64_palette_preview.gdshader")
 const ENEMY_SCENES := [
 	ENEMY_REGULATED_SCENE,
 	ENEMY_SPREAD_SCENE,
@@ -57,11 +60,24 @@ const LAYOUT_SPAWN_SLOTS := {
 
 const ROOM_SIZE := Vector2(1280.0, 640.0)
 const PLAYER_SPAWN := Vector2(180.0, 324.0)
+const PLAYER_SPAWN_LARGE := Vector2(900.0, 1620.0)
 const ENEMY_SPAWN := Vector2(950.0, 324.0)
 const EXIT_LEFT := 17.0 * 32.0
 const EXIT_RIGHT := 23.0 * 32.0
 const EXIT_INTERACT_Y := 72.0
 const EXIT_BLOCKER_SIZE := Vector2(192.0, 34.0)
+
+## Spawn slots para el cuarto grande 5× (megacore, 200×100 tiles = 6400×3200px)
+const LAYOUT_SPAWN_SLOTS_LARGE := {
+	&"megacore": [
+		Vector2(3200.0, 1600.0),
+		Vector2(1600.0, 900.0),
+		Vector2(4800.0, 900.0),
+		Vector2(1600.0, 2300.0),
+		Vector2(4800.0, 2300.0),
+		Vector2(800.0, 1600.0),
+	],
+}
 const PROMPT_STEAL := "press E to steal :: bind.enemy.attack()"
 const PROMPT_OPEN := "press E to open :: door.teleport()"
 const PROMPT_LOCKED := "complete.room.to.finish()"
@@ -69,13 +85,13 @@ const ROOM_TRANSITION_LOCK := 0.45
 const HUD_MARGIN := Vector2(18.0, 18.0)
 const HUD_BAR_SIZE := Vector2(214.0, 16.0)
 const HUD_BAR_GAP := 10.0
-const HUD_FRAME_COLOR := Color(0.12, 0.09, 0.16, 0.94)
-const HUD_BACK_COLOR := Color(0.03, 0.03, 0.05, 0.90)
-const HUD_HEALTH_COLOR := Color(0.88, 0.16, 0.16, 0.96)
-const HUD_MANA_COLOR := Color(0.06, 0.72, 0.94, 0.96)
-const HUD_THOUGHT_COLOR := Color(0.64, 0.30, 1.0, 0.96)
-const HUD_TEXT_COLOR := Color(0.90, 0.94, 1.0, 0.96)
-const HUD_TEXT_OUTLINE := Color(0.02, 0.03, 0.06, 0.98)
+const HUD_FRAME_COLOR := Color8(42, 47, 78, 240)
+const HUD_BACK_COLOR := Color8(27, 27, 27, 230)
+const HUD_HEALTH_COLOR := Color8(234, 50, 60, 245)
+const HUD_MANA_COLOR := Color8(0, 152, 220, 245)
+const HUD_THOUGHT_COLOR := Color8(122, 9, 250, 245)
+const HUD_TEXT_COLOR := Color8(249, 230, 207, 245)
+const HUD_TEXT_OUTLINE := Color8(14, 7, 27, 250)
 const HUD_BAR_LABEL_WIDTH := 28.0
 const HUD_FRAME_OFFSET := Vector2(30.0, 0.0)
 const HUD_BAR_INSET := Vector2(32.0, 2.0)
@@ -93,6 +109,8 @@ const ROOM_CLI_NUMBER_DIGITS := 2
 const ROOM_CLI_ANIM_STEP := 0.042
 const ROOM_CLI_CURSOR_PERIOD := 0.5
 const PIXEL_FONT := preload("res://art/fonts/Silkscreen-Regular.ttf")
+const ENDESGA64_PREVIEW_ENABLED := false
+const ENDESGA64_PREVIEW_STRENGTH := 0.46
 enum RoomCliAnimState {
 	IDLE,
 	ERASE,
@@ -105,6 +123,9 @@ var ExitUnlocked := false
 var CurrentRoomIndex := 0
 var CurrentBiomeIndex := 1
 var CurrentBiomeRoomNumber := 1
+
+## Tamaño activo del cuarto (se actualiza al entrar a cada room)
+var _active_room_size := ROOM_SIZE
 
 var _narrative
 var _biome_prev := 1
@@ -120,6 +141,10 @@ var _exit_blocker_collision: CollisionShape2D = null
 var _prompt_root: Node2D = null
 var _prompt_bg: Polygon2D = null
 var _prompt_label: Label = null
+var _room_structure_root: Node2D = null
+var _room_shadow_root: Node2D = null
+var _room_light_root: Node2D = null
+var _room_decor: Node2D = null
 var _hud_layer: CanvasLayer = null
 var _hud_root: Control = null
 var _health_fill: ColorRect = null
@@ -136,15 +161,68 @@ var _room_cli_bg: ColorRect = null
 var _room_cli_line: ColorRect = null
 var _room_cli_label: Label = null
 var _room_cli_cursor: ColorRect = null
+var _palette_preview_overlay: ColorRect = null
+var _visual_stack: Node2D = null
 var _room_cli_text := ""
 var _room_cli_target_text := ""
 var _room_cli_anim_state: RoomCliAnimState = RoomCliAnimState.IDLE
 var _room_cli_anim_timer := 0.0
 var _room_cli_cursor_timer := 0.0
+var _room_light_tracks: Array[Dictionary] = []
 var _rng := RandomNumberGenerator.new()
 
 func _get_save_manager() -> Node:
 	return get_node_or_null("/root/SaveManager")
+
+## ── Helpers de tamaño dinámico ───────────────────────────────────────────────
+
+func _room_sz() -> Vector2:
+	if _floor_tiles != null and _floor_tiles.has_method("get_room_pixel_size"):
+		return _floor_tiles.get_room_pixel_size()
+	return ROOM_SIZE
+
+func _exit_l() -> float:
+	if _floor_tiles != null and _floor_tiles.has_method("get_exit_start_px"):
+		return _floor_tiles.get_exit_start_px()
+	return EXIT_LEFT
+
+func _exit_r() -> float:
+	if _floor_tiles != null and _floor_tiles.has_method("get_exit_end_px"):
+		return _floor_tiles.get_exit_end_px()
+	return EXIT_RIGHT
+
+## Actualiza el polígono del fondo void_bg para cubrir el cuarto activo
+func _update_void_bg() -> void:
+	var bg := get_node_or_null("void_bg") as Polygon2D
+	if bg == null:
+		return
+	var sz := _active_room_size
+	bg.polygon = PackedVector2Array([
+		Vector2(-200.0, -200.0),
+		Vector2(sz.x + 200.0, -200.0),
+		Vector2(sz.x + 200.0, sz.y + 200.0),
+		Vector2(-200.0, sz.y + 200.0),
+	])
+
+## Reconstruye el bloqueador de salida con posición dinámica
+func _rebuild_exit_blocker() -> void:
+	var old := get_node_or_null("exit_blocker")
+	if old != null:
+		old.get_parent().remove_child(old)
+		old.free()
+		_exit_blocker_collision = null
+	_build_exit_blocker()
+
+func _ensure_visual_stack() -> void:
+	if _visual_stack != null:
+		return
+	_visual_stack = BRUNICH_VISUAL_STACK.new()
+	add_child(_visual_stack)
+
+func _refresh_visual_stack() -> void:
+	if _visual_stack == null or _floor_tiles == null or not _visual_stack.has_method("rebuild_for_room"):
+		return
+	_visual_stack.rebuild_for_room(_player, _floor_tiles, _active_room_size, _exit_l(), _exit_r(), CurrentLayoutId)
 
 func _ready() -> void:
 	_rng.randomize()
@@ -155,9 +233,11 @@ func _ready() -> void:
 		_configure_camera_limits(_player)
 		_player.global_position = PLAYER_SPAWN
 
+	_build_room_art_layers()
 	_build_exit_blocker()
 	_build_command_prompt()
 	_build_hud()
+	_ensure_visual_stack()
 
 	# Narrative overlay for in-run moments
 	_narrative = NARRATIVE_OVERLAY_SCRIPT.new()
@@ -175,6 +255,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_teleport_cooldown = maxf(_teleport_cooldown - delta, 0.0)
+	_update_room_art()
 	_update_interaction_prompt()
 	_update_room_cli(delta)
 	_update_hud_bars()
@@ -295,11 +376,30 @@ func _enter_current_room(is_forced_refresh: bool = false) -> void:
 	_clear_room_pickups()
 	_clear_active_enemy()
 	_set_exit_unlocked(false)
+
+	# ── Dimensiones dinámicas: cuarto 2 es 5× más grande ──────────────────────
+	if _floor_tiles != null:
+		if CurrentBiomeRoomNumber == 2:
+			_floor_tiles.set_dimensions(200, 100)
+		else:
+			_floor_tiles.reset_to_default_dimensions()
+	_active_room_size = _room_sz()
+	_update_void_bg()
+	_rebuild_exit_blocker()
+	if _player != null:
+		_configure_camera_limits(_player)
+	# ─────────────────────────────────────────────────────────────────────────
+
 	CurrentLayoutId = _choose_layout_id(is_forced_refresh)
 	if _floor_tiles != null:
 		_floor_tiles.set_layout_id(CurrentLayoutId)
+	_refresh_room_art_layers()
+
+	var active_spawn := PLAYER_SPAWN_LARGE if CurrentBiomeRoomNumber == 2 else PLAYER_SPAWN
 	if _player != null:
-		_player.global_position = PLAYER_SPAWN
+		_player.global_position = active_spawn
+	_refresh_visual_stack()
+
 	_spawn_enemy_wave_for_current_room()
 	_update_room_cli_target(not is_forced_refresh)
 	_clear_prompt()
@@ -378,7 +478,13 @@ func _get_enemy_pool_for_current_room() -> Array[PackedScene]:
 	return ENEMY_SCENES.duplicate()
 
 func _get_spawn_slots_for_layout(layout_id: StringName) -> Array[Vector2]:
-	var source_slots = LAYOUT_SPAWN_SLOTS[layout_id] if LAYOUT_SPAWN_SLOTS.has(layout_id) else LAYOUT_SPAWN_SLOTS[&"classic"]
+	var source_slots
+	if LAYOUT_SPAWN_SLOTS_LARGE.has(layout_id):
+		source_slots = LAYOUT_SPAWN_SLOTS_LARGE[layout_id]
+	elif LAYOUT_SPAWN_SLOTS.has(layout_id):
+		source_slots = LAYOUT_SPAWN_SLOTS[layout_id]
+	else:
+		source_slots = LAYOUT_SPAWN_SLOTS[&"classic"]
 	var slots: Array[Vector2] = []
 	for slot in source_slots:
 		slots.append(slot)
@@ -440,7 +546,9 @@ func _clear_room_pickups() -> void:
 func _is_player_near_exit() -> bool:
 	if _player == null:
 		return false
-	if _player.global_position.x < EXIT_LEFT - 28.0 or _player.global_position.x > EXIT_RIGHT + 28.0:
+	var el := _exit_l()
+	var er := _exit_r()
+	if _player.global_position.x < el - 28.0 or _player.global_position.x > er + 28.0:
 		return false
 	if _player.global_position.y > EXIT_INTERACT_Y:
 		return false
@@ -460,9 +568,11 @@ func _set_exit_unlocked(unlocked: bool) -> void:
 		_exit_blocker_collision.disabled = unlocked
 
 func _build_exit_blocker() -> void:
+	var el := _exit_l()
+	var er := _exit_r()
 	var blocker := StaticBody2D.new()
 	blocker.name = "exit_blocker"
-	blocker.position = Vector2((EXIT_LEFT + EXIT_RIGHT) * 0.5, -6.0)
+	blocker.position = Vector2((el + er) * 0.5, -6.0)
 	add_child(blocker)
 
 	_exit_blocker_collision = CollisionShape2D.new()
@@ -475,10 +585,299 @@ func _configure_camera_limits(player: Node2D) -> void:
 	var camera := player.get_node_or_null("camera") as Camera2D
 	if camera == null:
 		return
-	camera.limit_left = 0
-	camera.limit_right = int(ROOM_SIZE.x)
-	camera.limit_top = 0
-	camera.limit_bottom = int(ROOM_SIZE.y)
+	var sz := _active_room_size
+	camera.limit_left   = 0
+	camera.limit_right  = int(sz.x)
+	camera.limit_top    = 0
+	camera.limit_bottom = int(sz.y)
+
+func _build_room_art_layers() -> void:
+	_room_structure_root = Node2D.new()
+	_room_structure_root.name = "room_structure_root"
+	_room_structure_root.z_index = -7
+	add_child(_room_structure_root)
+
+	_room_shadow_root = Node2D.new()
+	_room_shadow_root.name = "room_shadow_root"
+	_room_shadow_root.z_index = -6
+	add_child(_room_shadow_root)
+
+	_room_light_root = Node2D.new()
+	_room_light_root.name = "room_light_root"
+	_room_light_root.z_index = -5
+	add_child(_room_light_root)
+
+	# Decoration layer (props, pipe overlays — uses its own z_indices internally)
+	var decor_script := load("res://scenes/tests/Brunich/room_decor.gd")
+	_room_decor = Node2D.new()
+	_room_decor.name = "room_decor"
+	_room_decor.set_script(decor_script)
+	add_child(_room_decor)
+
+func _refresh_room_art_layers() -> void:
+	if _room_structure_root == null or _room_shadow_root == null or _room_light_root == null:
+		return
+	_clear_node_children(_room_structure_root)
+	_clear_node_children(_room_shadow_root)
+	_clear_node_children(_room_light_root)
+	_room_light_tracks.clear()
+
+	_build_room_structure_composition()
+	_build_room_shadows()
+	_build_room_guidance_lighting()
+	_build_layout_specific_room_lighting(CurrentLayoutId)
+
+	# Beta2 depth decoration
+	if _room_decor != null and _room_decor.has_method("setup"):
+		_room_decor.setup(CurrentLayoutId, _active_room_size, _exit_l(), _exit_r())
+
+func _build_room_structure_composition() -> void:
+	var rs := _active_room_size
+	var el := _exit_l()
+	var er := _exit_r()
+	_add_room_polygon(
+		_room_structure_root,
+		"objective_frame_back",
+		BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ROOM_METAL_BASE, 0.05),
+		_make_world_rect(el - 54.0, 8.0, (er - el) + 108.0, 86.0)
+	)
+	_add_room_polygon(
+		_room_structure_root,
+		"center_stage_plate",
+		BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ROOM_METAL_SOFT, 0.04),
+		_make_diamond(Vector2(rs.x * 0.5, rs.y * 0.53), 236.0, 78.0)
+	)
+	_add_room_polygon(
+		_room_structure_root,
+		"left_service_band",
+		BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ROOM_PANEL_DARK, 0.08),
+		_make_world_rect(72.0, 132.0, 132.0, 304.0)
+	)
+	_add_room_polygon(
+		_room_structure_root,
+		"right_service_band",
+		BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ROOM_PANEL_DARK, 0.08),
+		_make_world_rect(rs.x - 204.0, 132.0, 132.0, 304.0)
+	)
+
+func _build_room_shadows() -> void:
+	var rs := _active_room_size
+	_add_room_polygon(
+		_room_shadow_root,
+		"top_shadow",
+		BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ROOM_SHADOW, 0.22),
+		_make_world_rect(0.0, 0.0, rs.x, 96.0)
+	)
+	_add_room_polygon(
+		_room_shadow_root,
+		"bottom_shadow",
+		BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.VOID_BG, 0.28),
+		_make_world_rect(0.0, rs.y - 112.0, rs.x, 112.0)
+	)
+	_add_room_polygon(
+		_room_shadow_root,
+		"left_shadow",
+		BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.VOID_BG, 0.14),
+		_make_world_rect(0.0, 112.0, 112.0, 388.0)
+	)
+	_add_room_polygon(
+		_room_shadow_root,
+		"right_shadow",
+		BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.VOID_BG, 0.14),
+		_make_world_rect(rs.x - 112.0, 112.0, 112.0, 388.0)
+	)
+
+func _build_room_guidance_lighting() -> void:
+	var rs := _active_room_size
+	var exit_center := Vector2((_exit_l() + _exit_r()) * 0.5, 40.0)
+	var center_focus := Vector2(rs.x * 0.5, rs.y * 0.53)
+	var lower_focus := Vector2(rs.x * 0.5, rs.y - 116.0)
+
+	_add_pulsing_light(
+		"objective_beacon",
+		BRUNICH_PALETTE.ACCENT_OBJECTIVE,
+		_make_tapered_strip(exit_center, center_focus + Vector2(0.0, -96.0), 74.0, 182.0),
+		0.96,
+		0.04,
+		0.12,
+		0.05
+	)
+	_add_pulsing_light(
+		"objective_gate_core",
+		BRUNICH_PALETTE.ACCENT_OBJECTIVE_SOFT,
+		_make_diamond(exit_center + Vector2(0.0, 6.0), 92.0, 24.0),
+		1.42,
+		0.10,
+		0.20,
+		0.04
+	)
+	_add_pulsing_light(
+		"center_focus_glow",
+		BRUNICH_PALETTE.ACCENT_COLD,
+		_make_diamond(center_focus, 176.0, 62.0),
+		0.88,
+		0.03,
+		0.08,
+		0.04
+	)
+	_add_pulsing_light(
+		"center_focus_core",
+		BRUNICH_PALETTE.ACCENT_COLD_HOT,
+		_make_diamond(center_focus, 74.0, 28.0),
+		1.52,
+		0.05,
+		0.12,
+		0.03
+	)
+	_add_pulsing_light(
+		"guide_strip_left",
+		BRUNICH_PALETTE.ACCENT_COLD,
+		_make_tapered_strip(Vector2(232.0, rs.y - 108.0), lower_focus, 12.0, 34.0),
+		0.80,
+		0.03,
+		0.09,
+		0.03
+	)
+	_add_pulsing_light(
+		"guide_strip_right",
+		BRUNICH_PALETTE.ACCENT_COLD,
+		_make_tapered_strip(Vector2(rs.x - 232.0, rs.y - 108.0), lower_focus, 12.0, 34.0),
+		0.86,
+		0.03,
+		0.09,
+		0.03
+	)
+
+func _build_layout_specific_room_lighting(layout_id: StringName) -> void:
+	var rs := _active_room_size
+	match layout_id:
+		&"rib_cage":
+			_add_side_bay_light(Vector2(186.0, rs.y * 0.5), Vector2(94.0, 272.0), 0.10)
+			_add_side_bay_light(Vector2(rs.x - 186.0, rs.y * 0.5), Vector2(94.0, 272.0), 0.16)
+		&"split_bridge":
+			_add_side_bay_light(Vector2(324.0, rs.y * 0.5), Vector2(118.0, 236.0), 0.12)
+			_add_side_bay_light(Vector2(rs.x - 324.0, rs.y * 0.5), Vector2(118.0, 236.0), 0.18)
+		&"reactor_spine":
+			_add_side_bay_light(Vector2(190.0, 176.0), Vector2(88.0, 98.0), 0.10)
+			_add_side_bay_light(Vector2(rs.x - 190.0, 176.0), Vector2(88.0, 98.0), 0.14)
+			_add_side_bay_light(Vector2(190.0, rs.y - 176.0), Vector2(88.0, 98.0), 0.18)
+			_add_side_bay_light(Vector2(rs.x - 190.0, rs.y - 176.0), Vector2(88.0, 98.0), 0.22)
+		&"megacore":
+			# Luces de bahía escaladas 5× para el cuarto grande
+			_add_side_bay_light(Vector2(870.0, rs.y * 0.5), Vector2(420.0, 540.0), 0.08)
+			_add_side_bay_light(Vector2(rs.x - 870.0, rs.y * 0.5), Vector2(420.0, 540.0), 0.12)
+			_add_side_bay_light(Vector2(870.0, rs.y * 0.25), Vector2(420.0, 420.0), 0.16)
+			_add_side_bay_light(Vector2(rs.x - 870.0, rs.y * 0.25), Vector2(420.0, 420.0), 0.20)
+			_add_side_bay_light(Vector2(870.0, rs.y * 0.75), Vector2(420.0, 420.0), 0.24)
+			_add_side_bay_light(Vector2(rs.x - 870.0, rs.y * 0.75), Vector2(420.0, 420.0), 0.28)
+		_:
+			_add_side_bay_light(Vector2(174.0, 172.0), Vector2(84.0, 84.0), 0.08)
+			_add_side_bay_light(Vector2(rs.x - 174.0, 172.0), Vector2(84.0, 84.0), 0.12)
+			_add_side_bay_light(Vector2(174.0, rs.y - 172.0), Vector2(84.0, 84.0), 0.16)
+			_add_side_bay_light(Vector2(rs.x - 174.0, rs.y - 172.0), Vector2(84.0, 84.0), 0.20)
+
+func _add_side_bay_light(center: Vector2, size: Vector2, phase_offset: float) -> void:
+	var light_name := "bay_light_%d_%d" % [int(center.x), int(center.y)]
+	_add_pulsing_light(
+		light_name,
+		BRUNICH_PALETTE.ACCENT_COLD_DIM,
+		_make_diamond(center, size.x, size.y),
+		0.96 + phase_offset * 0.6,
+		0.02,
+		0.07,
+		0.03,
+		phase_offset
+	)
+
+func _update_room_art() -> void:
+	if _room_light_tracks.is_empty():
+		return
+	var time := float(Time.get_ticks_msec()) * 0.001
+	for track in _room_light_tracks:
+		var poly := track.get("node") as Polygon2D
+		if poly == null:
+			continue
+		var base_color := track.get("base_color", Color.WHITE) as Color
+		var pulse_speed := float(track.get("pulse_speed", 1.0))
+		var min_alpha := float(track.get("min_alpha", 0.06))
+		var max_alpha := float(track.get("max_alpha", 0.16))
+		var scale_pulse := float(track.get("scale_pulse", 0.06))
+		var phase := float(track.get("phase", 0.0))
+		var pulse := sin(time * pulse_speed + phase) * 0.5 + 0.5
+		poly.color = BRUNICH_PALETTE.with_alpha(base_color, lerpf(min_alpha, max_alpha, pulse))
+		poly.scale = Vector2.ONE * (1.0 + scale_pulse * pulse)
+
+func _add_pulsing_light(
+	name: String,
+	base_color: Color,
+	points: PackedVector2Array,
+	pulse_speed: float,
+	min_alpha: float,
+	max_alpha: float,
+	scale_pulse: float,
+	phase: float = 0.0
+) -> Polygon2D:
+	var poly := _add_room_polygon(_room_light_root, name, BRUNICH_PALETTE.with_alpha(base_color, max_alpha), points, true)
+	_room_light_tracks.append({
+		"node": poly,
+		"base_color": base_color,
+		"pulse_speed": pulse_speed,
+		"min_alpha": min_alpha,
+		"max_alpha": max_alpha,
+		"scale_pulse": scale_pulse,
+		"phase": phase,
+	})
+	return poly
+
+func _add_room_polygon(
+	parent: Node2D,
+	name: String,
+	color_value: Color,
+	points: PackedVector2Array,
+	additive: bool = false
+) -> Polygon2D:
+	var poly := Polygon2D.new()
+	poly.name = name
+	poly.color = color_value
+	poly.polygon = points
+	if additive:
+		var material := CanvasItemMaterial.new()
+		material.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		poly.material = material
+	parent.add_child(poly)
+	return poly
+
+func _make_world_rect(left: float, top: float, width: float, height: float) -> PackedVector2Array:
+	return PackedVector2Array([
+		Vector2(left, top),
+		Vector2(left + width, top),
+		Vector2(left + width, top + height),
+		Vector2(left, top + height),
+	])
+
+func _make_diamond(center: Vector2, width: float, height: float) -> PackedVector2Array:
+	return PackedVector2Array([
+		center + Vector2(0.0, -height * 0.5),
+		center + Vector2(width * 0.5, 0.0),
+		center + Vector2(0.0, height * 0.5),
+		center + Vector2(-width * 0.5, 0.0),
+	])
+
+func _make_tapered_strip(start: Vector2, finish: Vector2, width_start: float, width_end: float) -> PackedVector2Array:
+	var direction := (finish - start).normalized()
+	if direction == Vector2.ZERO:
+		direction = Vector2.UP
+	var normal := direction.orthogonal()
+	return PackedVector2Array([
+		start + normal * width_start * 0.5,
+		finish + normal * width_end * 0.5,
+		finish - normal * width_end * 0.5,
+		start - normal * width_start * 0.5,
+	])
+
+func _clear_node_children(node: Node) -> void:
+	for child in node.get_children():
+		child.queue_free()
 
 func _build_command_prompt() -> void:
 	_prompt_root = Node2D.new()
@@ -488,14 +887,14 @@ func _build_command_prompt() -> void:
 	add_child(_prompt_root)
 
 	_prompt_bg = Polygon2D.new()
-	_prompt_bg.color = Color(0.04, 0.08, 0.15, 0.0)
+	_prompt_bg.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.TERMINAL_BG, 0.0)
 	_prompt_bg.polygon = PackedVector2Array([
 		Vector2(-122, -12), Vector2(122, -12), Vector2(122, 12), Vector2(-122, 12),
 	])
 	_prompt_root.add_child(_prompt_bg)
 
 	_prompt_label = Label.new()
-	_prompt_label.label_settings = _create_terminal_label_settings(Color(0.72, 1.0, 0.94, 1.0), 13, 1)
+	_prompt_label.label_settings = _create_terminal_label_settings(BRUNICH_PALETTE.TERMINAL_TEXT, 13, 1)
 	_prompt_label.position = Vector2(-116, -11)
 	_prompt_label.size = Vector2(232, 22)
 	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -538,7 +937,7 @@ func _get_nearest_pickup_in_range() -> Node2D:
 	return nearest_pickup
 
 func _get_exit_prompt_position() -> Vector2:
-	return Vector2((EXIT_LEFT + EXIT_RIGHT) * 0.5, 38.0)
+	return Vector2((_exit_l() + _exit_r()) * 0.5, 38.0)
 
 func _set_prompt(message: String, world_position: Vector2) -> void:
 	CurrentPromptText = message
@@ -548,8 +947,8 @@ func _set_prompt(message: String, world_position: Vector2) -> void:
 	_prompt_root.position = world_position + Vector2(0, sin(float(Time.get_ticks_msec()) * 0.010) * 2.0)
 	var blink := "_" if int(Time.get_ticks_msec() / 220) % 2 == 0 else ""
 	_prompt_label.text = "%s%s" % [message, blink]
-	_prompt_bg.color = Color(0.04, 0.08, 0.15, 0.78 + sin(float(Time.get_ticks_msec()) * 0.018) * 0.04)
-	_prompt_label.modulate = Color(0.72, 1.0, 0.94, 0.94)
+	_prompt_bg.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.TERMINAL_BG, 0.76 + sin(float(Time.get_ticks_msec()) * 0.018) * 0.05)
+	_prompt_label.modulate = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.TERMINAL_TEXT, 0.94)
 
 func _clear_prompt() -> void:
 	CurrentPromptText = ""
@@ -583,6 +982,40 @@ func _build_hud() -> void:
 	_thought_label = thought_bar["label"] as Label
 	_thought_value_label = thought_bar["value_label"] as Label
 	_build_room_cli()
+	_build_palette_preview_overlay()
+
+func _build_palette_preview_overlay() -> void:
+	if _hud_root == null:
+		return
+
+	_palette_preview_overlay = ColorRect.new()
+	_palette_preview_overlay.name = "endesga64_palette_preview"
+	_palette_preview_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_palette_preview_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_palette_preview_overlay.color = Color(1.0, 1.0, 1.0, 1.0)
+
+	var preview_material := ShaderMaterial.new()
+	preview_material.shader = ENDESGA64_PALETTE_PREVIEW_SHADER
+	preview_material.set_shader_parameter("preview_strength", ENDESGA64_PREVIEW_STRENGTH)
+	_palette_preview_overlay.material = preview_material
+	_palette_preview_overlay.visible = ENDESGA64_PREVIEW_ENABLED
+	_hud_root.add_child(_palette_preview_overlay)
+
+func set_palette_preview_enabled(enabled: bool) -> void:
+	if _palette_preview_overlay == null:
+		return
+	_palette_preview_overlay.visible = enabled
+
+func set_palette_preview_strength(strength: float) -> void:
+	if _palette_preview_overlay == null:
+		return
+	var shader_material := _palette_preview_overlay.material as ShaderMaterial
+	if shader_material == null:
+		return
+	shader_material.set_shader_parameter("preview_strength", clampf(strength, 0.0, 1.0))
+
+func debug_is_palette_preview_enabled() -> bool:
+	return _palette_preview_overlay != null and _palette_preview_overlay.visible
 
 func _create_hud_bar(label_text: String, local_position: Vector2, fill_color: Color) -> Dictionary:
 	var container := Control.new()
@@ -665,14 +1098,14 @@ func _create_thought_hud_bar() -> Dictionary:
 
 	var frame := ColorRect.new()
 	frame.name = "at_frame"
-	frame.color = Color(0.10, 0.04, 0.16, 0.94)
+	frame.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.HUD_FRAME, 0.94)
 	frame.position = Vector2(26.0, 3.0)
 	frame.size = HUD_THOUGHT_BAR_SIZE + Vector2(4.0, 4.0)
 	container.add_child(frame)
 
 	var background := ColorRect.new()
 	background.name = "at_bg"
-	background.color = Color(0.03, 0.02, 0.06, 0.92)
+	background.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.HUD_BG, 0.92)
 	background.position = Vector2(28.0, 5.0)
 	background.size = HUD_THOUGHT_BAR_SIZE
 	container.add_child(background)
@@ -716,13 +1149,13 @@ func _build_room_cli() -> void:
 
 	_room_cli_bg = ColorRect.new()
 	_room_cli_bg.name = "room_cli_bg"
-	_room_cli_bg.color = Color(0.04, 0.08, 0.15, 0.82)
+	_room_cli_bg.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.TERMINAL_BG, 0.82)
 	_room_cli_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_room_cli.add_child(_room_cli_bg)
 
 	_room_cli_line = ColorRect.new()
 	_room_cli_line.name = "room_cli_line"
-	_room_cli_line.color = Color(0.18, 0.34, 0.58, 0.46)
+	_room_cli_line.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.TERMINAL_LINE, 0.46)
 	_room_cli_line.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_room_cli_line.offset_top = 0.0
 	_room_cli_line.offset_bottom = 1.0
@@ -815,9 +1248,9 @@ func _render_room_cli() -> void:
 	if _room_cli_cursor != null:
 		_room_cli_cursor.visible = _room_cli_cursor_timer < ROOM_CLI_CURSOR_PERIOD
 	if _room_cli_bg != null:
-		_room_cli_bg.color = Color(0.04, 0.08, 0.15, 0.78 if _room_cli_anim_state == RoomCliAnimState.IDLE else 0.88)
+		_room_cli_bg.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.TERMINAL_BG, 0.78 if _room_cli_anim_state == RoomCliAnimState.IDLE else 0.88)
 	if _room_cli_line != null:
-		_room_cli_line.color = Color(0.18, 0.34, 0.58, 0.36 if _room_cli_anim_state == RoomCliAnimState.IDLE else 0.58)
+		_room_cli_line.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.TERMINAL_LINE, 0.36 if _room_cli_anim_state == RoomCliAnimState.IDLE else 0.58)
 
 func debug_get_room_cli_text() -> String:
 	return _room_cli_text

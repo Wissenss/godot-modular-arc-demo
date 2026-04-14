@@ -10,7 +10,16 @@ func _run() -> void:
 	_ensure_dir(ProjectSettings.globalize_path(OUT_DIR))
 
 	var world: Node = load(SCENE_PATH).instantiate()
+	if _has_property(world, "DisableSceneReloadForTests"):
+		world.DisableSceneReloadForTests = true
 	root.add_child(world)
+	await _wait_frames(2)
+
+	var narrative: Variant = world.get("_narrative")
+	if narrative != null and narrative.has_method("stop"):
+		narrative.stop()
+	paused = false
+	await _wait_frames(2)
 
 	await _capture("00_idle.png")
 
@@ -37,3 +46,9 @@ func _wait_frames(count: int) -> void:
 
 func _ensure_dir(path: String) -> void:
 	DirAccess.make_dir_recursive_absolute(path)
+
+func _has_property(node: Object, property_name: String) -> bool:
+	for prop in node.get_property_list():
+		if prop.name == property_name:
+			return true
+	return false

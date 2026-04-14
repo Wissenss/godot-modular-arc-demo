@@ -1,28 +1,30 @@
 extends CharacterBody2D
 
+const BRUNICH_PALETTE := preload("res://scenes/tests/Brunich/brunich_palette.gd")
 const GLITCH_DURATION := 0.35
 const INVINCIBLE_DURATION := 0.6
 const MOVE_SPEED := 374.0
 const DASH_SPEED := 1078.0
 const DASH_DURATION := 0.08
-const DASH_RECHARGE_DURATION := 1.0
+const DASH_RECHARGE_DURATION := 0.6
+const DASH_PARRY_WINDOW := 0.14
 const MAX_DASH_CHARGES := 1
 const FACE_DATA_PATH := "res://art/generated/brunich/mc_face_expressions.json"
 const SCANLINE_SHADER := preload("res://scenes/tests/Brunich/scanline_shader.gdshader")
 const ACCELERATED_THOUGHT_SHADER := preload("res://scenes/tests/Brunich/accelerated_thought_overlay.gdshader")
 const NARRATIVE_OVERLAY_SCRIPT := preload("res://scenes/tests/Brunich/narrative_overlay.gd")
-const SCREEN_FRAME_IDLE := Color(0.07, 0.09, 0.16, 0.96)
-const SCREEN_FRAME_ACTIVE := Color(0.12, 0.12, 0.22, 0.98)
-const SCREEN_SHELL_IDLE := Color(0.03, 0.05, 0.10, 0.98)
-const SCREEN_SHELL_ACTIVE := Color(0.08, 0.07, 0.16, 1.0)
-const SCREEN_TRIM_IDLE := Color(0.16, 0.24, 0.40, 0.90)
-const SCREEN_TRIM_ACTIVE := Color(0.34, 0.50, 0.78, 0.94)
-const SCREEN_FILL_IDLE := Color(0.23, 0.23, 0.25, 0.98)
-const SCREEN_FILL_ACTIVE := Color(0.28, 0.28, 0.31, 1.0)
-const SCREEN_GLOW_IDLE := Color(0.34, 0.56, 1.0, 0.10)
-const SCREEN_GLOW_ACTIVE := Color(0.55, 0.24, 0.98, 0.18)
-const PIXEL_IDLE := Color(0.84, 0.86, 0.90, 0.98)
-const PIXEL_ALERT := Color(0.96, 0.97, 1.0, 1.0)
+const SCREEN_FRAME_IDLE := Color(BRUNICH_PALETTE.HERO_FRAME_IDLE.r, BRUNICH_PALETTE.HERO_FRAME_IDLE.g, BRUNICH_PALETTE.HERO_FRAME_IDLE.b, 0.96)
+const SCREEN_FRAME_ACTIVE := Color(BRUNICH_PALETTE.HERO_FRAME_ACTIVE.r, BRUNICH_PALETTE.HERO_FRAME_ACTIVE.g, BRUNICH_PALETTE.HERO_FRAME_ACTIVE.b, 0.98)
+const SCREEN_SHELL_IDLE := Color(BRUNICH_PALETTE.HERO_SHELL_IDLE.r, BRUNICH_PALETTE.HERO_SHELL_IDLE.g, BRUNICH_PALETTE.HERO_SHELL_IDLE.b, 0.98)
+const SCREEN_SHELL_ACTIVE := Color(BRUNICH_PALETTE.HERO_SHELL_ACTIVE.r, BRUNICH_PALETTE.HERO_SHELL_ACTIVE.g, BRUNICH_PALETTE.HERO_SHELL_ACTIVE.b, 1.0)
+const SCREEN_TRIM_IDLE := Color(BRUNICH_PALETTE.HERO_TRIM_IDLE.r, BRUNICH_PALETTE.HERO_TRIM_IDLE.g, BRUNICH_PALETTE.HERO_TRIM_IDLE.b, 0.90)
+const SCREEN_TRIM_ACTIVE := Color(BRUNICH_PALETTE.HERO_TRIM_ACTIVE.r, BRUNICH_PALETTE.HERO_TRIM_ACTIVE.g, BRUNICH_PALETTE.HERO_TRIM_ACTIVE.b, 0.94)
+const SCREEN_FILL_IDLE := Color(BRUNICH_PALETTE.HERO_FILL_IDLE.r, BRUNICH_PALETTE.HERO_FILL_IDLE.g, BRUNICH_PALETTE.HERO_FILL_IDLE.b, 0.98)
+const SCREEN_FILL_ACTIVE := Color(BRUNICH_PALETTE.HERO_FILL_ACTIVE.r, BRUNICH_PALETTE.HERO_FILL_ACTIVE.g, BRUNICH_PALETTE.HERO_FILL_ACTIVE.b, 1.0)
+const SCREEN_GLOW_IDLE := Color(BRUNICH_PALETTE.HERO_GLOW_IDLE.r, BRUNICH_PALETTE.HERO_GLOW_IDLE.g, BRUNICH_PALETTE.HERO_GLOW_IDLE.b, 0.10)
+const SCREEN_GLOW_ACTIVE := Color(BRUNICH_PALETTE.HERO_GLOW_ACTIVE.r, BRUNICH_PALETTE.HERO_GLOW_ACTIVE.g, BRUNICH_PALETTE.HERO_GLOW_ACTIVE.b, 0.18)
+const PIXEL_IDLE := Color(BRUNICH_PALETTE.HERO_PIXEL_IDLE.r, BRUNICH_PALETTE.HERO_PIXEL_IDLE.g, BRUNICH_PALETTE.HERO_PIXEL_IDLE.b, 0.98)
+const PIXEL_ALERT := Color(BRUNICH_PALETTE.HERO_PIXEL_ALERT.r, BRUNICH_PALETTE.HERO_PIXEL_ALERT.g, BRUNICH_PALETTE.HERO_PIXEL_ALERT.b, 1.0)
 const FACE_PIXEL_SCALE := 0.688
 const FACE_PIXEL_POOL_SIZE := 64
 const STEAL_RANGE := 76.0
@@ -98,6 +100,7 @@ var DashCharges := MAX_DASH_CHARGES
 var _glitch_timer := 0.0
 var _invincible_timer := 0.0
 var _dash_timer := 0.0
+var _dash_parry_timer := 0.0
 var _dash_recharge_timer := 0.0
 var _dash_direction := Vector2.ZERO
 var _face_variant := 0
@@ -182,7 +185,7 @@ func _ready() -> void:
 	_apply_face("angry")
 
 	self.GlitchPolygon = $polygon
-	self.GlitchPolygon.color = Color(0.60, 0.18, 1.0, 1.0)
+	self.GlitchPolygon.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ACCENT_THOUGHT_SOFT, 1.0)
 	self.GlitchPolygon.visible = false
 
 func _process(delta: float) -> void:
@@ -222,6 +225,7 @@ func _process(delta: float) -> void:
 		try_hackeo()
 
 func _physics_process(delta: float) -> void:
+	_dash_parry_timer = maxf(_dash_parry_timer - delta, 0.0)
 	if _dash_timer > 0.0:
 		self.position += _dash_direction * DASH_SPEED * delta
 		_dash_timer = maxf(_dash_timer - delta, 0.0)
@@ -244,6 +248,7 @@ func request_dash(direction: Vector2) -> bool:
 	DashCharges -= 1
 	_dash_direction = dash_dir
 	_dash_timer = DASH_DURATION
+	_dash_parry_timer = DASH_PARRY_WINDOW
 
 	if DashCharges < MAX_DASH_CHARGES:
 		_dash_recharge_timer = _get_dash_recharge_duration()
@@ -374,13 +379,13 @@ func _update_visual_state(delta: float, is_attacking: bool) -> void:
 	var flux_boost := 1.0 if _weapon_swap_buff_timer > 0.0 else 0.0
 	self.BodyParticlesBright.initial_velocity_max = (150.0 + motion_boost * 18.0 + dash_boost * 36.0 + flux_boost * 20.0) * particle_speed
 	self.BodyParticlesBright.scale_amount_max = 4.8 + pulse * 0.75 + dash_boost * 1.0 + flux_boost * 0.8
-	self.BodyParticlesBright.color = Color(0.43, 0.16, 0.97, 0.54 + pulse * 0.12 + dash_boost * 0.08 + flux_boost * 0.10)
+	self.BodyParticlesBright.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.HERO_PARTICLE_BRIGHT, 0.54 + pulse * 0.12 + dash_boost * 0.08 + flux_boost * 0.10)
 	self.BodyParticlesDark.initial_velocity_max = (132.0 + motion_boost * 14.0 + dash_boost * 24.0) * particle_speed
 	self.BodyParticlesDark.scale_amount_max = 4.4 + pulse * 0.6 + flux_boost * 0.4
-	self.BodyParticlesDark.color = Color(0.0, 0.0, 0.0, 0.46 + pulse * 0.08)
+	self.BodyParticlesDark.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.VOID_BG, 0.46 + pulse * 0.08)
 	self.BodyParticles.initial_velocity_max = (154.0 + motion_boost * 26.0 + dash_boost * 30.0 + flux_boost * 18.0) * particle_speed
 	self.BodyParticles.scale_amount_max = 8.64 + pulse * 0.72 + dash_boost * 0.96 + flux_boost * 0.72
-	self.BodyParticles.color = Color(0.10, 0.04, 0.48, 0.38 + pulse * 0.10 + dash_boost * 0.05 + flux_boost * 0.08)
+	self.BodyParticles.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.HERO_PARTICLE_BASE, 0.38 + pulse * 0.10 + dash_boost * 0.05 + flux_boost * 0.08)
 
 	if _glitch_timer > 0.0:
 		_glitch_timer -= delta
@@ -456,6 +461,18 @@ func _has_effect_component(effect_class_name: StringName) -> bool:
 
 func _get_dash_recharge_duration() -> float:
 	return DASH_RECHARGE_DURATION * clampf(DashRechargeMultiplier, 0.35, 1.0)
+
+func get_dash_recharge_duration() -> float:
+	return _get_dash_recharge_duration()
+
+func is_dashing() -> bool:
+	return _dash_timer > 0.0
+
+func consume_beam_perfect_dodge() -> bool:
+	if _dash_parry_timer <= 0.0:
+		return false
+	_dash_parry_timer = 0.0
+	return true
 
 func set_dash_recharge_factor(reduction_factor: float) -> void:
 	DashRechargeMultiplier = clampf(1.0 - reduction_factor, 0.35, 1.0)
@@ -1081,9 +1098,9 @@ func _configure_core_particles() -> void:
 	self.BodyParticlesDark.emission_rect_extents = Vector2(10.0, 10.0)
 	self.BodyParticlesBright.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
 	self.BodyParticlesBright.emission_rect_extents = Vector2(9.0, 9.0)
-	self.BodyParticles.color = Color(0.10, 0.04, 0.48, 0.46)
-	self.BodyParticlesBright.color = Color(0.48, 0.18, 0.98, 0.66)
-	self.TrailParticles.color = Color(0.16, 0.06, 0.58, 0.60)
+	self.BodyParticles.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.HERO_PARTICLE_BASE, 0.46)
+	self.BodyParticlesBright.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.HERO_PARTICLE_BRIGHT, 0.66)
+	self.TrailParticles.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.HERO_TRAIL, 0.60)
 	self.BodyParticles.scale_amount_min = 1.6
 	self.BodyParticles.scale_amount_max = 8.64
 	self.BodyParticlesBright.scale_amount_min = 1.4
@@ -1363,7 +1380,7 @@ func _update_flux_feedback(pulse: float, flux_boost: float, dash_boost: float) -
 			self.StealBuffParticlesBack.emitting = true
 		elif not buff_active and self.StealBuffParticlesBack.emitting:
 			self.StealBuffParticlesBack.emitting = false
-		self.StealBuffParticlesBack.color = Color(0.40, 0.92, 0.30, 0.34 + flux_boost * 0.34 + pulse * 0.08)
+		self.StealBuffParticlesBack.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.HERO_SWAP_BACK, 0.34 + flux_boost * 0.34 + pulse * 0.08)
 		self.StealBuffParticlesBack.initial_velocity_max = 42.0 + dash_boost * 10.0
 	if self.StealBuffParticlesFront != null:
 		if buff_active and not self.StealBuffParticlesFront.emitting:
@@ -1371,7 +1388,7 @@ func _update_flux_feedback(pulse: float, flux_boost: float, dash_boost: float) -
 			self.StealBuffParticlesFront.emitting = true
 		elif not buff_active and self.StealBuffParticlesFront.emitting:
 			self.StealBuffParticlesFront.emitting = false
-		self.StealBuffParticlesFront.color = Color(0.84, 1.0, 0.70, 0.38 + flux_boost * 0.42 + pulse * 0.10)
+		self.StealBuffParticlesFront.color = BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.HERO_SWAP_FRONT, 0.38 + flux_boost * 0.42 + pulse * 0.10)
 		self.StealBuffParticlesFront.initial_velocity_max = 48.0 + dash_boost * 12.0
 
 func _trigger_weapon_swap_feedback() -> void:

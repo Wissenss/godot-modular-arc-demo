@@ -2,9 +2,10 @@ class_name EnemyAICoreWeapon
 extends Node2D
 
 const BEAM_SCENE := preload("res://scenes/tests/Brunich/enemy_ai_beam.tscn")
+const BRUNICH_PALETTE := preload("res://scenes/tests/Brunich/brunich_palette.gd")
 
 var Owner: CharacterBody2D
-var ShootInterval := 1.16
+var ShootInterval := 0.6
 
 var _shoot_timer := 0.0
 var _active_beam: Node2D = null
@@ -66,7 +67,7 @@ func _get_player() -> Node2D:
 func _get_beam_profile() -> Dictionary:
 	return {
 		"charge_duration": 0.72,
-		"active_duration": 6.0,
+		"active_duration": 1.2,
 		"fade_duration": 0.24,
 		"beam_length": 720.0,
 		"warning_width": 18.0,
@@ -75,16 +76,18 @@ func _get_beam_profile() -> Dictionary:
 		"damage_tick_interval": 0.09,
 		"damage_per_tick": 25,
 		"origin_offset": 28.0,
-		"warning_color": Color(0.78, 0.96, 1.0, 0.52),
-		"beam_outer_color": Color(0.58, 0.90, 1.0, 0.96),
-		"beam_core_color": Color(0.96, 0.99, 1.0, 0.98),
-		"endpoint_color": Color(0.98, 1.0, 1.0, 0.94),
+		"allow_dash_discharge": true,
+		"lock_on_fire": true,
+		"warning_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ACCENT_COLD_HOT, 0.52),
+		"beam_outer_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_COLD_OUTER, 0.96),
+		"beam_core_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_COLD_CODE, 0.98),
+		"endpoint_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_COLD_CODE, 0.94),
 	}
 
 func _get_pickup_beam_profile() -> Dictionary:
 	return {
 		"charge_duration": 0.40,
-		"active_duration": 1.04,
+		"active_duration": 1.2,
 		"fade_duration": 0.16,
 		"beam_length": 760.0,
 		"warning_width": 15.0,
@@ -93,10 +96,12 @@ func _get_pickup_beam_profile() -> Dictionary:
 		"damage_tick_interval": 0.10,
 		"damage_per_tick": 8,
 		"origin_offset": 28.0,
-		"warning_color": Color(0.82, 0.94, 1.0, 0.44),
-		"beam_outer_color": Color(0.62, 0.88, 1.0, 0.92),
-		"beam_core_color": Color(0.98, 1.0, 1.0, 0.98),
-		"endpoint_color": Color(0.98, 1.0, 1.0, 0.88),
+		"allow_dash_discharge": false,
+		"lock_on_fire": true,
+		"warning_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ACCENT_COLD_HOT, 0.44),
+		"beam_outer_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_COLD_OUTER, 0.92),
+		"beam_core_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_COLD_CODE, 0.98),
+		"endpoint_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_COLD_CODE, 0.88),
 	}
 
 func _on_beam_finished() -> void:

@@ -1,9 +1,10 @@
 class_name EnemyPierceWeapon extends Node2D
 
-## Precision sniper: single slow heavy projectile that passes through the player once.
+## Precision sniper: hypervelocity precision shot with heavy damage.
 
+const BRUNICH_PALETTE := preload("res://scenes/tests/Brunich/brunich_palette.gd")
 const MUZZLE_OFFSET := 42.0
-const PROJECTILE_SPEED := 687.7
+const PROJECTILE_SPEED := 2406.95
 const PROJECTILE_SCENE := preload("res://scenes/tests/Brunich/enemy_pierce_projectile.tscn")
 
 var Owner: CharacterBody2D
@@ -78,10 +79,10 @@ func _get_projectile_profile() -> Dictionary:
 		"damage": 62,
 		"life_time": 3.2,
 		"visual_scale": 1.75,
-		"outer_color": Color(0.84, 0.90, 1.0, 0.96),
-		"core_color": Color(0.06, 0.06, 0.10, 1.0),
-		"code_color": Color(0.94, 0.96, 1.0, 1.0),
-		"trail_color": Color(0.74, 0.82, 1.0, 0.65),
+		"outer_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ROOM_METAL_EDGE, 0.96),
+		"core_color": BRUNICH_PALETTE.ROOM_PANEL_DARK,
+		"code_color": BRUNICH_PALETTE.HUD_TEXT,
+		"trail_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ROOM_METAL_SOFT, 0.65),
 		"trail_scale_min": 7.0,
 		"trail_scale_max": 11.0,
 		"pierce_count": -1,
@@ -93,10 +94,10 @@ func _get_pickup_profile() -> Dictionary:
 		"damage": 62,
 		"life_time": 3.0,
 		"visual_scale": 1.70,
-		"outer_color": Color(0.82, 0.88, 1.0, 0.96),
-		"core_color": Color(0.08, 0.08, 0.12, 1.0),
-		"code_color": Color(0.92, 0.94, 1.0, 0.98),
-		"trail_color": Color(0.72, 0.80, 1.0, 0.60),
+		"outer_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ROOM_METAL_EDGE, 0.96),
+		"core_color": BRUNICH_PALETTE.ROOM_PANEL_DARK,
+		"code_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.HUD_TEXT, 0.98),
+		"trail_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ROOM_METAL_SOFT, 0.60),
 		"trail_scale_min": 7.0,
 		"trail_scale_max": 10.0,
 		"pierce_count": -1,

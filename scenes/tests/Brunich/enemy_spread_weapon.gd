@@ -2,6 +2,7 @@ class_name EnemySpreadWeapon extends Node2D
 
 ## Shotgun-style burst: 5 pellets fired simultaneously in a wide arc.
 
+const BRUNICH_PALETTE := preload("res://scenes/tests/Brunich/brunich_palette.gd")
 const MUZZLE_OFFSET := 30.0
 const PROJECTILE_SPEED := 410.55
 const PELLET_COUNT := 5
@@ -89,10 +90,10 @@ func _get_projectile_profile() -> Dictionary:
 		"damage": 4,
 		"life_time": 1.05,
 		"visual_scale": 0.80,
-		"outer_color": Color(1.0, 0.74, 0.05, 0.92),
-		"core_color": Color(0.24, 0.10, 0.02, 1.0),
-		"code_color": Color(1.0, 0.93, 0.65, 0.96),
-		"trail_color": Color(1.0, 0.62, 0.06, 0.55),
+		"outer_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_WARM_OUTER, 0.92),
+		"core_color": BRUNICH_PALETTE.ENEMY_WARM_CORE,
+		"code_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_WARM_CODE, 0.96),
+		"trail_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_WARM_OUTER, 0.55),
 		"trail_scale_min": 4.0,
 		"trail_scale_max": 6.0,
 	}
@@ -102,10 +103,10 @@ func _get_pickup_profile() -> Dictionary:
 		"damage": 4,
 		"life_time": 1.2,
 		"visual_scale": 0.85,
-		"outer_color": Color(1.0, 0.78, 0.08, 0.92),
-		"core_color": Color(0.28, 0.14, 0.02, 1.0),
-		"code_color": Color(1.0, 0.96, 0.72, 0.95),
-		"trail_color": Color(1.0, 0.72, 0.10, 0.55),
+		"outer_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_WARM_OUTER, 0.92),
+		"core_color": BRUNICH_PALETTE.ENEMY_WARM_CORE,
+		"code_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_WARM_CODE, 0.95),
+		"trail_color": BRUNICH_PALETTE.with_alpha(BRUNICH_PALETTE.ENEMY_WARM_OUTER, 0.55),
 		"trail_scale_min": 5.0,
 		"trail_scale_max": 7.0,
 	}
