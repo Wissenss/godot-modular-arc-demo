@@ -39,7 +39,7 @@ const HEAL_FLASH_DURATION := 0.46
 const SCREEN_BASE_SCALE := 0.747
 const SCREEN_GLOW_BASE_SCALE := 0.802
 const SCREEN_BLUR_BASE_SCALE := 0.860
-const FACE_ROOT_SCALE := 0.904
+const FACE_ROOT_SCALE := 0.76
 const PARTICLE_SPEED_MULTIPLIER := 0.5
 const PARTICLE_LIFETIME_MULTIPLIER := 1.45
 const PIXEL_FONT := preload("res://art/fonts/Silkscreen-Regular.ttf")
@@ -522,7 +522,7 @@ func _update_accelerated_thought_state(real_delta: float, thought_pressed: bool)
 		_accelerated_thought_charge = maxf(_accelerated_thought_charge - real_delta, 0.0)
 		if _accelerated_thought_charge <= 0.0:
 			_set_accelerated_thought_active(false)
-	else:
+	elif not thought_pressed:
 		var recharge_rate := ACCELERATED_THOUGHT_MAX_CHARGE / ACCELERATED_THOUGHT_RECHARGE_TIME
 		_accelerated_thought_charge = minf(_accelerated_thought_charge + real_delta * recharge_rate, ACCELERATED_THOUGHT_MAX_CHARGE)
 
@@ -790,6 +790,10 @@ func apply_slow(factor: float, duration: float) -> void:
 	_slow_timer = maxf(duration, _slow_timer)
 
 func try_hackeo() -> bool:
+	var save_mgr := get_tree().root.get_node("SaveManager")
+	if save_mgr.get_completed_runs() < 1:
+		_show_hack_popup("Completa una run para desbloquear el hackeo")
+		return false
 	if Ciclos < HACKEO_COST:
 		_show_hack_popup("ciclos.insuficientes()")
 		return false

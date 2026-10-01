@@ -60,7 +60,7 @@ func _build_bg(root: Control) -> void:
 		root.add_child(sl)
 
 func _build_title(root: Control) -> void:
-	var lbl := _mk_lbl("IA  ROGUE", 40, COLOR_TITLE)
+	var lbl := _mk_lbl("AI  ROGUE", 40, COLOR_TITLE)
 	lbl.position = Vector2(VIEWPORT_W * 0.5 - 130, 72)
 	lbl.size = Vector2(380, 52)
 	root.add_child(lbl)
@@ -123,7 +123,8 @@ func _build_slot_panel(root: Control, idx: int, x: float, y: float) -> void:
 	panel.add_child(header)
 
 	if has_save:
-		var runs := int(preview.get("run_count", 0))
+		var runs := int(preview.get("completed_runs", 0))
+		var attempts := int(preview.get("attempt_count", 0))
 		var biome := int(preview.get("biome_reached", 1))
 		var res := int(preview.get("resources", 0))
 
@@ -141,6 +142,10 @@ func _build_slot_panel(root: Control, idx: int, x: float, y: float) -> void:
 		r3.position = Vector2(14, 78)
 		r3.size = Vector2(260, 16)
 		panel.add_child(r3)
+		var attempts_label := _mk_lbl("INTENTOS: %d" % attempts, 12, COLOR_DIM)
+		attempts_label.position = Vector2(14, 96)
+		attempts_label.size = Vector2(260, 16)
+		panel.add_child(attempts_label)
 
 		var cont := _mk_lbl("[ CONTINUAR ]", 12, COLOR_TEXT)
 		cont.position = Vector2(14, 116)
@@ -181,7 +186,7 @@ func _process(_delta: float) -> void:
 			(b as ColorRect).color = COLOR_BORDER_HOV if hovering else COLOR_BORDER
 
 func _input(event: InputEvent) -> void:
-	if not (event is InputEventMouseButton and event.pressed):
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 		return
 	var mouse := get_viewport().get_mouse_position()
 

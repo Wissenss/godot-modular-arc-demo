@@ -1,5 +1,5 @@
 ## Brunich arena generator.
-## Builds a focused 32x32 atlas from the UpDown sheet and paints the approved
+## Uses the native 32x32 industrial atlas and paints the approved
 ## industrial-sunken layout with a clear top exit.
 extends TileMapLayer
 const BRUNICH_PALETTE := preload("res://scenes/tests/Brunich/brunich_palette.gd")
@@ -13,7 +13,7 @@ var EXIT_END := 22
 const EXIT_WIDTH_TILES := 6
 const WALL_THICKNESS := 32.0
 
-const ATLAS_PATH := "res://art/generated/brunich/brunich_updown_atlas.png"
+const ATLAS_PATH := "res://art/generated/brunich/brunich_industrial_atlas.res"
 
 const T_FLOOR_PLAIN := Vector2i(0, 0)
 const T_FLOOR_PANEL := Vector2i(1, 0)
@@ -47,8 +47,7 @@ func _ready() -> void:
 	_refresh_room()
 
 func _build_tileset() -> TileSet:
-	var image := Image.load_from_file(ProjectSettings.globalize_path(ATLAS_PATH))
-	var tex := ImageTexture.create_from_image(image)
+	var tex := load(ATLAS_PATH) as Texture2D
 	var atlas := TileSetAtlasSource.new()
 	atlas.texture = tex
 	atlas.texture_region_size = Vector2i(TILE_SIZE, TILE_SIZE)

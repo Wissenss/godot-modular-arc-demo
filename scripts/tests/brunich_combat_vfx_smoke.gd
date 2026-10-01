@@ -16,18 +16,26 @@ func _run() -> void:
 	root.add_child(world)
 
 	var player_projectile := load(PLAYER_PROJECTILE_SCENE).instantiate() as Node2D
-	player_projectile.Owner = Node2D.new()
+	var player_owner := Node2D.new()
+	world.add_child(player_owner)
+	player_projectile.Owner = player_owner
 	world.add_child(player_projectile)
 	await _wait_frames(2)
-	player_projectile._handle_on_hurt(Area2D.new(), 1)
+	var player_target := Area2D.new()
+	world.add_child(player_target)
+	player_projectile._handle_on_hurt(player_target, 1)
 	await _wait_frames(2)
 	_expect(_count_group("combat_vfx") > 0, "el proyectil del jugador debe generar un impacto visual al colisionar")
 
 	var enemy_projectile := load(ENEMY_PROJECTILE_SCENE).instantiate() as Node2D
-	enemy_projectile.Owner = Node2D.new()
+	var enemy_owner := Node2D.new()
+	world.add_child(enemy_owner)
+	enemy_projectile.Owner = enemy_owner
 	world.add_child(enemy_projectile)
 	await _wait_frames(2)
-	enemy_projectile._handle_on_hurt(Area2D.new(), 1)
+	var enemy_target := Area2D.new()
+	world.add_child(enemy_target)
+	enemy_projectile._handle_on_hurt(enemy_target, 1)
 	await _wait_frames(2)
 	_expect(_count_group("combat_vfx") > 0, "el proyectil enemigo debe generar un impacto visual al colisionar")
 

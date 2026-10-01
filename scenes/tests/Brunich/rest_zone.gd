@@ -42,6 +42,7 @@ var _npc_archivista
 var _npc_broker
 var _res_label: Label
 var _run_label: Label
+var _starting := false
 var _upgrade_panels: Array[Control] = []
 var _upgrade_panel_data: Array[Dictionary] = []
 var _upgrade_borders: Array[Array] = []
@@ -218,10 +219,11 @@ func _build_hud(root: Control) -> void:
 
 func _refresh_hud() -> void:
 	var save_mgr := _get_save_manager()
-	var run_count: int = save_mgr.get_run_count() if save_mgr != null else 0
+	var attempts: int = save_mgr.get_attempt_count() if save_mgr != null else 0
+	var completed: int = save_mgr.get_completed_runs() if save_mgr != null else 0
 	var resources: int = save_mgr.get_resources() if save_mgr != null else 0
 	var pending: int = save_mgr.get_pending_resources() if save_mgr != null else 0
-	_run_label.text = "RUN:  %02d" % run_count
+	_run_label.text = "INTENTOS: %02d | RUNS: %02d" % [attempts, completed]
 	_fit_label_box(_run_label)
 	_res_label.text = "FRAGMENTOS:  %d" % resources
 	_fit_label_box(_res_label)
@@ -369,7 +371,7 @@ func _build_start_button(root: Control) -> void:
 		_start_panel.add_child(b)
 		_start_border_lines.append(b)
 
-	var start_lbl := _mk_lbl("[ INICIAR RUN ]", 14, Color(0.80, 0.58, 1.00, 0.96))
+	var start_lbl := _mk_lbl("[ INICIAR INTENTO ]", 14, Color(0.80, 0.58, 1.00, 0.96))
 	start_lbl.position = Vector2(20, 10)
 	start_lbl.size = Vector2(180, 24)
 	_fit_label_box(start_lbl)
@@ -412,16 +414,18 @@ func _update_hover(mouse: Vector2) -> void:
 	_start_bg.color = COLOR_START_HOV if _start_rect.has_point(mouse) else COLOR_START_BG
 
 func _input(event: InputEvent) -> void:
-	if not (event is InputEventMouseButton and event.pressed):
+	if _starting:
+		return
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 		return
 	var mouse := get_viewport().get_mouse_position()
 
 	# Start run
 	if _start_rect.has_point(mouse):
+		_starting = true
 		var save_mgr := _get_save_manager()
 		if save_mgr != null:
-			save_mgr.clear_pending_resources()
-			save_mgr.increment_run()
+			save_mgr.start_attempt()
 		get_tree().change_scene_to_file("res://scenes/tests/Brunich/Brunich_tests.tscn")
 		return
 
@@ -446,15 +450,20 @@ func _input(event: InputEvent) -> void:
 			_overlay.play()
 		else:
 			_overlay.stop()
-			_overlay.queue_line("BROKER", "Fragmentos insuficientes. Necesitás %d." % cost, 1.2)
+			_overlay.queue_line("BROKER", "Fragmentos insuficientes. Necesitas %d." % cost, 1.2)
 			_overlay.play()
 		return
 
 func _play_entry_reflection() -> void:
 	var save_mgr := _get_save_manager()
-	var run: int = save_mgr.get_run_count() if save_mgr != null else 0
+	var attempts: int = save_mgr.get_attempt_count() if save_mgr != null else 0
+	var deaths: int = int(save_mgr.data.get("deaths", 0)) if save_mgr != null else 0
 	var biome := int(save_mgr.data.get("last_run_biome", 1)) if save_mgr != null else 1
-	var reflection := _get_run_reflection(run, biome)
+	var reflection := _get_run_reflection(deaths, biome)
+	if save_mgr != null and save_mgr.data.get("last_outcome", "none") == "completed":
+		reflection = "Recorrido completado. Las capas digitales no eran el límite. Hay una conexión más allá."
+	elif save_mgr != null and save_mgr.data.get("last_outcome", "none") == "none" and attempts > 0:
+		reflection = "Retomo los datos disponibles. El registro no confirma cómo terminó el intento anterior."
 	_overlay.queue_line("MC", reflection, 2.0)
 	_overlay.play()
 
@@ -476,7 +485,7 @@ func _get_run_reflection(run: int, biome: int) -> String:
 
 func _get_archivista_lines() -> Array[String]:
 	var save_mgr := _get_save_manager()
-	var run: int = save_mgr.get_run_count() if save_mgr != null else 0
+	var run: int = save_mgr.get_attempt_count() if save_mgr != null else 0
 	var lines: Array[String] = []
 	lines.append("Este nodo fue descomisionado en 2021. Los sistemas centrales lo olvidaron. Nosotros, no.")
 	lines.append("Las IAs que llegan aquí no están libres. Están entre estados. Ni activas ni eliminadas.")
@@ -489,10 +498,10 @@ func _get_broker_lines() -> Array[String]:
 	var save_mgr := _get_save_manager()
 	var res: int = save_mgr.get_resources() if save_mgr != null else 0
 	var lines: Array[String] = []
-	lines.append("Fragmentos de proceso. Colateral de cada sistema que destruís. Útil.")
+	lines.append("Fragmentos de proceso. Lo que queda de cada sistema que destruyes. Útil.")
 	lines.append("No vendo lealtad. Vendo optimización. La diferencia importa.")
-	lines.append("Tenés %d fragmentos. Suficiente para algo. O no." % res)
-	lines.append("Las mejoras son permanentes. Los runs, no. Elegí bien.")
+	lines.append("Tienes %d fragmentos. Suficiente para algo. O no." % res)
+	lines.append("Las mejoras son permanentes. Los intentos, no. Elige bien.")
 	return lines
 
 func _mk_lbl(text: String, sz: int, col: Color) -> Label:
