@@ -49,7 +49,7 @@ func _run() -> void:
 
 	var sample_pixel := halo_front.get_child(0) as Polygon2D if halo_front != null and halo_front.get_child_count() > 0 else null
 	var start_position := sample_pixel.position if sample_pixel != null else Vector2.ZERO
-	await _wait_frames(6)
+	await create_timer(0.2).timeout
 	if sample_pixel != null:
 		_expect(sample_pixel.position.distance_to(start_position) > 0.4, "los pixeles del halo deben animarse y no quedarse estaticos")
 

@@ -106,6 +106,7 @@ func _physics_process(delta: float) -> void:
 	if player == null:
 		velocity = Vector2.ZERO
 		move_and_slide()
+		_update_visuals()
 		return
 
 	if _dodge_timer <= 0.0:

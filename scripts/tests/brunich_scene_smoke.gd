@@ -17,6 +17,7 @@ func _run() -> void:
 	if _has_property(world, "DisableSceneReloadForTests"):
 		world.DisableSceneReloadForTests = true
 	root.add_child(world)
+	world.get("_narrative").call("stop")
 
 	await _wait_frames(2)
 
@@ -34,13 +35,13 @@ func _run() -> void:
 	var hud_layer := world.get_node_or_null("hud_layer") as CanvasLayer
 	var hud_root := hud_layer.get_node_or_null("hud_root") as Control if hud_layer != null else null
 	var health_fill := hud_root.get_node_or_null("hp_bar/hp_fill") as ColorRect if hud_root != null else null
-	var mana_fill := hud_root.get_node_or_null("mn_bar/mn_fill") as ColorRect if hud_root != null else null
+	var mana_fill := hud_root.get_node_or_null("cy_bar/cy_fill") as ColorRect if hud_root != null else null
 
 	_expect(floor_tiles != null, "floor_tiles debe existir")
 	_expect(hud_layer != null, "Brunich debe tener una capa HUD fija al viewport")
 	_expect(hud_root != null, "Brunich debe construir un contenedor HUD")
 	_expect(health_fill != null, "Brunich debe tener una barra de vida arriba a la izquierda")
-	_expect(mana_fill != null, "Brunich debe tener una barra de mana arriba a la izquierda")
+	_expect(mana_fill != null, "El HUD debe mostrar ciclos, no mana archivada")
 	if health_fill != null:
 		_expect(health_fill.color.r > health_fill.color.g + 0.3, "la barra de vida debe verse roja")
 	if mana_fill != null:
@@ -98,13 +99,15 @@ func _run() -> void:
 	_expect(mc.Weapon.SHOOT_COOLDOWN <= 0.1, "el arma del MC debe disparar muy rapido al mantener el click")
 	_expect(is_equal_approx(mc.ConstantVelocityComp.Speed, 374.0), "la velocidad base del MC debe subir diez por ciento respecto a la iteracion anterior")
 	_expect(camera.zoom.x <= 1.52 and camera.zoom.x >= 1.48, "la camara debe quedar claramente mas alejada que la iteracion anterior")
-	_expect(mc.BodyParticles.amount >= 205 and mc.BodyParticles.amount <= 214, "los cuadritos morados del MC deben reducirse un poco en cantidad")
-	_expect(mc.TrailParticles.amount >= 158 and mc.TrailParticles.amount <= 166, "la estela morada tambien debe reducirse un poco en cantidad")
+	_expect(mc.BodyParticles.amount == 120, "el cuerpo conserva el presupuesto de 120 partículas")
+	_expect(mc.TrailParticles.amount == 92, "la estela conserva el presupuesto de 92 partículas")
 	_expect(mc.BodyParticles.scale_amount_max <= 12.5, "los cuadritos morados del MC deben verse claramente mas pequenos")
 	_expect(mc.BodyParticlesBright.scale_amount_max <= 6.5, "las particulas brillantes del MC deben reducir su tamano")
 	_expect(not mc.BodyParticles.local_coords, "los cuadritos morados del cuerpo no deben quedar pegados al MC al moverse")
 	_expect(FileAccess.get_file_as_string("res://scripts/components/controller_comp.gd").find("Input.is_action_pressed(\"attack\")") != -1, "el ataque debe salir al mantener presionado el click izquierdo")
-	_expect(load(PLAYER_PROJECTILE_PATH).instantiate().has_node("outline_polygon"), "el proyectil del MC debe tener un perimetro remarcado para leerse mejor")
+	var projectile_shape := load(PLAYER_PROJECTILE_PATH).instantiate() as Node
+	_expect(projectile_shape.has_node("outline_polygon"), "el proyectil conserva un perímetro visible")
+	projectile_shape.free()
 	_expect(mc.get_current_face_expression() == "angry", "el MC debe mantener angry como expresion base")
 	var sweep_lines := mc.get_node("screen_sweep_lines") as Node2D
 	if sweep_lines != null and sweep_lines.get_child_count() > 0:
@@ -129,7 +132,8 @@ func _run() -> void:
 	if health_fill != null:
 		_expect(health_fill.size.x < initial_health_bar_width, "la barra de vida debe reducirse visualmente al recibir dano")
 	if mana_fill != null:
-		_expect(is_equal_approx(mana_fill.size.x, 214.0), "la barra de mana debe mantenerse llena mientras aun no tiene funcionalidad")
+		var expected_cy_width := 214.0 * float(mc.get_ciclos()) / float(mc.MAX_CICLOS)
+		_expect(absf(mana_fill.size.x - expected_cy_width) < 1.0, "la barra debe representar los ciclos actuales")
 	mc.HealthComp.set_health(initial_player_health)
 	await _wait_frames(1)
 	_expect(mc.get_available_face_expressions().size() >= 25, "el MC debe tener un catalogo amplio de caritas para diferentes situaciones")
@@ -140,6 +144,8 @@ func _run() -> void:
 	await _assert_enemy_dodges(world, mc, enemy)
 	await _assert_room_progression_and_attack_steal(world, mc, enemy)
 	await _assert_player_restart_request(world, mc)
+	world.queue_free()
+	await _wait_frames(2)
 
 	_completed = true
 	if _failures.is_empty():
@@ -160,6 +166,11 @@ func _arm_timeout() -> void:
 	quit(2)
 
 func _assert_enemy_dodges(world: Node, mc: Node2D, enemy: Node2D) -> void:
+	for previous in world.get_tree().get_nodes_in_group("player_projectile"):
+		if previous.get("Owner") == mc:
+			previous.queue_free()
+	await _wait_physics_frames(2)
+	await create_timer(float(enemy.get("_dodge_cooldown")) + 0.05).timeout
 	var projectile: Node2D = load(PLAYER_PROJECTILE_PATH).instantiate() as Node2D
 	projectile.global_position = enemy.global_position + Vector2(-140, 0)
 	projectile.Owner = mc
@@ -218,10 +229,10 @@ func _assert_dash_system(mc: Node2D) -> void:
 	_expect(mc.HealthComp.get_health() < mc.HealthComp.get_max_health(), "al terminar el dash el MC ya no debe seguir invencible")
 	fake_hurtbox.queue_free()
 
-	await _wait_physics_frames(24)
+	await _wait_physics_frames(6)
 	_expect(mc.DashCharges == 0, "la unica carga de dash no debe regresar demasiado pronto")
 	await _wait_physics_frames(42)
-	_expect(mc.DashCharges == 1, "la unica carga de dash debe recargarse tras cerca de 1 segundo")
+	_expect(mc.DashCharges == 1, "la carga debe volver después de los 0.6 segundos de recarga")
 
 func _assert_player_face_stays_stable_while_moving(mc: Node2D) -> void:
 	if not mc.has_node("face_pixels"):
@@ -243,7 +254,7 @@ func _assert_face_pixels_are_smaller(mc: Node2D) -> void:
 		return
 	var first_pixel := face_pixels.get_child(0) as Polygon2D
 	_expect(first_pixel.scale.x >= 0.66 and first_pixel.scale.x <= 0.74, "los pixeles base de las expresiones deben seguir siendo compactos")
-	_expect(face_pixels.scale.x >= 0.89 and face_pixels.scale.x <= 0.92, "la cara completa del MC debe crecer junto con el display en esta iteracion")
+	_expect(is_equal_approx(face_pixels.scale.x, 0.76), "la cara conserva el margen aprobado dentro del CRT")
 	_expect(first_pixel.color.r >= 0.70 and absf(first_pixel.color.r - first_pixel.color.g) <= 0.08 and absf(first_pixel.color.g - first_pixel.color.b) <= 0.10, "las expresiones del MC deben pasar a gris claro")
 
 func _assert_room_progression_and_attack_steal(world: Node, mc: Node2D, enemy: CharacterBody2D) -> void:
@@ -313,7 +324,7 @@ func _assert_room_progression_and_attack_steal(world: Node, mc: Node2D, enemy: C
 	world.debug_try_context_action()
 	await _wait_frames(2)
 	_expect(_has_property(world, "CurrentRoomIndex") and world.CurrentRoomIndex == 1, "la puerta superior debe avanzar al siguiente cuarto solo al interactuar con E")
-	_expect(mc.global_position.distance_to(Vector2(180.0, 324.0)) < 24.0, "al cambiar de cuarto el jugador debe reaparecer en el spawn del nuevo cuarto")
+	_expect(mc.global_position.distance_to(Vector2(900.0, 1620.0)) < 24.0, "la sala megacore usa el spawn grande, no el de la primera arena")
 	_expect(world.get_node_or_null("floor_tiles_room_2") == null, "solo debe cargarse un cuarto a la vez para evitar mostrar el cuarto anterior")
 	var room_2_enemy := world.get_node_or_null("EnemyRegulated") as CharacterBody2D
 	_expect(room_2_enemy != null, "al llegar al siguiente cuarto debe existir un nuevo enemigo activo")

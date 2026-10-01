@@ -110,7 +110,7 @@ func _run() -> void:
 				if outer_beam != null:
 					_expect(outer_beam.color.r > 0.48 and outer_beam.color.b > outer_beam.color.g, "el beam robado %s debe quedar morado" % spec.attack_id)
 				if core_beam != null:
-					_expect(core_beam.color.r > 0.70 and core_beam.color.b > core_beam.color.g, "el core del beam robado %s debe quedar morado" % spec.attack_id)
+					_expect(core_beam.color.r > 0.9 and core_beam.color.g > 0.8 and core_beam.color.b > 0.7, "el núcleo del haz robado %s debe conservar su centro claro" % spec.attack_id)
 		else:
 			var projectiles := _find_owned_enemy_projectiles(world, player)
 			_expect(

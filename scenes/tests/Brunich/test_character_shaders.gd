@@ -522,7 +522,7 @@ func _update_accelerated_thought_state(real_delta: float, thought_pressed: bool)
 		_accelerated_thought_charge = maxf(_accelerated_thought_charge - real_delta, 0.0)
 		if _accelerated_thought_charge <= 0.0:
 			_set_accelerated_thought_active(false)
-	else:
+	elif not thought_pressed:
 		var recharge_rate := ACCELERATED_THOUGHT_MAX_CHARGE / ACCELERATED_THOUGHT_RECHARGE_TIME
 		_accelerated_thought_charge = minf(_accelerated_thought_charge + real_delta * recharge_rate, ACCELERATED_THOUGHT_MAX_CHARGE)
 
