@@ -53,6 +53,8 @@ conservan. Todo sigue en el historial de Git.
 
 ## Problemas Abiertos y Orden
 
+Se trabajan como tandas en [Implementación](PLAN_IMPLEMENTACION.md).
+
 1. Bruno prueba final, contadores, desbloqueo y regreso al hub antes de ampliar
    historia. La materialización y el contenido físico siguen siendo propuestas.
 2. Mapas: segunda sala de cada bioma mide 200x100 tiles frente a 40x20;
