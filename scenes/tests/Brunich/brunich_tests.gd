@@ -119,6 +119,7 @@ enum RoomCliAnimState {
 
 var DisableSceneReloadForTests := false
 var RestartWasRequested := false
+var RunWasCompleted := false
 var ExitUnlocked := false
 var CurrentRoomIndex := 0
 var CurrentBiomeIndex := 1
@@ -280,11 +281,12 @@ func _bind_enemy(enemy: CharacterBody2D, room_index: int, room_token: int, enemy
 
 func _handle_player_died() -> void:
 	RestartWasRequested = true
-	if DisableSceneReloadForTests:
-		return
 	var save_mgr := _get_save_manager()
 	if save_mgr != null:
 		save_mgr.update_biome_reached(CurrentBiomeIndex)
+		save_mgr.record_death()
+	if DisableSceneReloadForTests:
+		return
 	call_deferred("_go_to_rest_zone")
 
 func _go_to_rest_zone() -> void:
@@ -318,13 +320,24 @@ func debug_try_context_action() -> void:
 	_try_context_action()
 
 func _advance_room() -> void:
+	if RunWasCompleted or RestartWasRequested:
+		return
+	var save_mgr := _get_save_manager()
+	var final_biome := 3 if save_mgr.get_completed_runs() == 0 else 4
+	if CurrentBiomeRoomNumber >= BIOME_ROOM_COUNT and CurrentBiomeIndex >= final_biome:
+		RunWasCompleted = true
+		if save_mgr != null:
+			save_mgr.update_biome_reached(CurrentBiomeIndex)
+			save_mgr.complete_run()
+		if not DisableSceneReloadForTests:
+			call_deferred("_go_to_rest_zone")
+		return
 	CurrentRoomIndex += 1
 	var biome_changed := false
 	if CurrentBiomeRoomNumber >= BIOME_ROOM_COUNT:
 		CurrentBiomeIndex += 1
 		CurrentBiomeRoomNumber = 1
 		biome_changed = true
-		var save_mgr := _get_save_manager()
 		if save_mgr != null:
 			save_mgr.update_biome_reached(CurrentBiomeIndex)
 	else:
@@ -1395,7 +1408,7 @@ func _play_biome_entry_monologue(biome_index: int, is_first: bool) -> void:
 	if _narrative == null:
 		return
 	var save_mgr := _get_save_manager()
-	var run: int = save_mgr.get_run_count() if save_mgr != null else 0
+	var run: int = save_mgr.get_completed_runs() if save_mgr != null else 0
 	var line := ""
 	match biome_index:
 		1:

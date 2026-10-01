@@ -18,6 +18,11 @@ func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	var manager := root.get_node("SaveManager")
+	if not String(manager.get("storage_directory")).begins_with("user://tests/"):
+		push_error("Metajuego requiere almacenamiento aislado del lanzador")
+		quit(2)
+		return
 	_test_save_manager_basics()
 	_test_save_manager_upgrades()
 	_test_save_manager_slots_independent()
@@ -29,6 +34,10 @@ func _run() -> void:
 	await _wait_frames(4)
 	await _test_brunich_tests_narrative_hooks()
 	await _test_scene_flow_basics()
+	for child in root.get_children():
+		if child != manager:
+			child.queue_free()
+	await _wait_frames(2)
 	_report()
 
 # ── SaveManager ───────────────────────────────────────────────────────────────
@@ -43,7 +52,7 @@ func _test_save_manager_basics() -> void:
 	sm.load_slot(0)
 	_expect(sm.active_slot == 0, "active_slot debe ser 0 tras load_slot(0)")
 	_expect(sm.get_resources() >= 0, "recursos deben ser >= 0")
-	_expect(sm.get_run_count() >= 0, "run_count debe ser >= 0")
+	_expect(sm.get_attempt_count() >= 0, "Intentos no negativos")
 
 	# Recursos
 	var res_before: int = sm.get_resources()
@@ -269,6 +278,7 @@ func _report() -> void:
 		print("FAIL brunich_metagame_smoke — %d errores:" % _failures.size())
 		for f in _failures:
 			print("  " + f)
+	quit(0 if _failures.is_empty() else 1)
 
 func _expect_all_labels_use_pixel_font(root_node: Node, scene_label: String) -> void:
 	for child in _collect_label_nodes(root_node):
@@ -290,7 +300,6 @@ func _collect_label_nodes(root_node: Node) -> Array[Node]:
 			result.append(child)
 		result.append_array(_collect_label_nodes(child))
 	return result
-	quit(0 if _failures.is_empty() else 1)
 
 func has_property(obj: Object, prop: String) -> bool:
 	for p in obj.get_property_list():

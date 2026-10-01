@@ -790,6 +790,10 @@ func apply_slow(factor: float, duration: float) -> void:
 	_slow_timer = maxf(duration, _slow_timer)
 
 func try_hackeo() -> bool:
+	var save_mgr := get_tree().root.get_node("SaveManager")
+	if save_mgr.get_completed_runs() < 1:
+		_show_hack_popup("Completa una run para desbloquear el hackeo")
+		return false
 	if Ciclos < HACKEO_COST:
 		_show_hack_popup("ciclos.insuficientes()")
 		return false
