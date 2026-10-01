@@ -30,4 +30,4 @@ solas calidad visual ni equilibrio. El lanzador aísla los guardados en un direc
 
 Fast 2D roguelike made in Godot 4.7.2: steal enemy weapons, clear rooms and
 buy permanent upgrades between attempts. Open `project.godot`; tests run with
-`pwsh tools/run_suite.ps1`.
+`tools/run_suite.ps1` through pwsh.

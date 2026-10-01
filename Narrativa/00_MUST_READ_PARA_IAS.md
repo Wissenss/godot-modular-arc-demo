@@ -7,7 +7,8 @@ del encargo; no necesitas leer toda la carpeta.
 |---|---|
 | Dónde está cada sistema y qué está activo | [Directorio](02_DIRECTORIO_DEL_PROYECTO.md) |
 | Identidad, personajes y propuesta narrativa | [Biblia](IA_ROGUE_BIBLIA.md) |
-| Auditoría, pruebas pendientes y siguiente tanda | [Organización](PLAN_ORGANIZACION.md) |
+| Qué se hizo en la organización y con qué pruebas | [Organización](PLAN_ORGANIZACION.md) |
+| Siguiente tanda y cómo se trabaja | [Implementación](PLAN_IMPLEMENTACION.md) |
 | Cómo abrir o verificar | [README](../README.md) |
 
 El directorio enlaza código y pruebas por área. La biblia no certifica avance:
