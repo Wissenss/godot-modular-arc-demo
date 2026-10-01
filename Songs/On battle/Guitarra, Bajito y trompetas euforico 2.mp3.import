@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://4gmypqtlhb4h"
+path="res://.godot/imported/Guitarra, Bajito y trompetas euforico 2.mp3-3f848047143a10c2cc44f36c5372086b.mp3str"
+
+[deps]
+
+source_file="res://Songs/On battle/Guitarra, Bajito y trompetas euforico 2.mp3"
+dest_files=["res://.godot/imported/Guitarra, Bajito y trompetas euforico 2.mp3-3f848047143a10c2cc44f36c5372086b.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
